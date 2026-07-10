@@ -34,34 +34,73 @@ export const ETAPAS_DESOCUPACAO: EtapaDesocupacao[] = [
   'Desocupado',
 ];
 
+// Categorias de despesa — espelham o modelo da planilha "Controle de Leilões".
 export type GastoCategoria =
+  // Custos de aquisição
+  | 'Dívida de condomínio'
+  | 'Escritura pública'
+  | 'Ônus'
+  | 'Obra'
+  | 'Eletricista'
+  | 'Registro'
+  | 'IPTU'
+  | 'Funesbom'
   | 'ITBI'
-  | 'Registro / Cartório'
+  | 'Chave'
+  | 'Engenharia'
+  | 'Leiloeiro'
   | 'Reforma'
   | 'Condomínio'
-  | 'IPTU'
   | 'Desocupação'
-  | 'Comissão de Venda'
-  | 'Leiloeiro'
+  // Custos de venda
+  | 'Certidões (venda)'
+  | 'Escritura (venda)'
+  | 'Registro (venda)'
+  | 'Comissão de venda'
+  | 'Custos de venda'
   | 'Outros';
 
-export const GASTO_CATEGORIAS: GastoCategoria[] = [
+export type FaseGasto = 'aquisicao' | 'venda';
+
+// Custos que compõem o TOTAL INVESTIDO (fase de aquisição).
+export const GASTOS_AQUISICAO: GastoCategoria[] = [
+  'Dívida de condomínio',
+  'Escritura pública',
+  'Ônus',
+  'Obra',
+  'Eletricista',
+  'Registro',
+  'IPTU',
+  'Funesbom',
   'ITBI',
-  'Registro / Cartório',
+  'Chave',
+  'Engenharia',
+  'Leiloeiro',
   'Reforma',
   'Condomínio',
-  'IPTU',
   'Desocupação',
-  'Comissão de Venda',
-  'Leiloeiro',
   'Outros',
 ];
+
+// Custos abatidos do valor de venda (fase de venda).
+export const GASTOS_VENDA: GastoCategoria[] = [
+  'Certidões (venda)',
+  'Escritura (venda)',
+  'Registro (venda)',
+  'Comissão de venda',
+  'Custos de venda',
+];
+
+export const GASTO_CATEGORIAS: GastoCategoria[] = [...GASTOS_AQUISICAO, ...GASTOS_VENDA];
 
 // Categorias dedutíveis do Ganho de Capital (custo de aquisição/benfeitoria).
 export const CATEGORIAS_DEDUTIVEIS_GCAP: GastoCategoria[] = [
   'ITBI',
-  'Registro / Cartório',
-  'Reforma',
+  'Registro',
+  'Escritura pública',
+  'Obra',
+  'Engenharia',
+  'Eletricista',
   'Leiloeiro',
 ];
 
@@ -91,12 +130,14 @@ export interface Imovel {
   endereco?: string;
   cidade?: string;
   uf?: string;
+  comprador?: string; // comprador na revenda
   fotoUrl?: string;
   status: ImovelStatus;
   etapaDesocupacao: EtapaDesocupacao;
   valorArrematacao: number;
   valorAvaliacao?: number;
   valorVenda?: number;
+  aliquotaIR?: number; // % de IR sobre o lucro (premissa; padrão 15%)
   dataArrematacao?: string;
   dataVenda?: string;
   createdAt: string; // ISO datetime

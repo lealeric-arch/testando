@@ -45,9 +45,11 @@ export function PropertyForm({
       fotoUrl: form.fotoUrl || '',
       status: form.status || 'Arrematado',
       etapaDesocupacao: form.etapaDesocupacao || 'Não iniciada',
+      comprador: form.comprador || '',
       valorArrematacao: Number(form.valorArrematacao) || 0,
       valorAvaliacao: Number(form.valorAvaliacao) || 0,
       valorVenda: Number(form.valorVenda) || 0,
+      aliquotaIR: form.aliquotaIR != null ? Number(form.aliquotaIR) : 15,
       dataArrematacao: form.dataArrematacao || '',
       dataVenda: form.dataVenda || '',
       createdAt: e?.createdAt ?? nowISO(),
@@ -89,6 +91,10 @@ export function PropertyForm({
           <input className="input" maxLength={2} value={form.uf || ''} onChange={(ev) => set('uf', ev.target.value.toUpperCase())} />
         </div>
         <div className="col-span-2">
+          <label className="label">Comprador (na revenda)</label>
+          <input className="input" value={form.comprador || ''} onChange={(ev) => set('comprador', ev.target.value)} placeholder="Nome do comprador" />
+        </div>
+        <div className="col-span-2">
           <label className="label">URL da foto</label>
           <input className="input" value={form.fotoUrl || ''} onChange={(ev) => set('fotoUrl', ev.target.value)} placeholder="https://..." />
         </div>
@@ -127,6 +133,10 @@ export function PropertyForm({
         <div>
           <label className="label">Valor de venda (R$)</label>
           <input className="input mono" type="number" value={form.valorVenda ?? ''} onChange={(ev) => set('valorVenda', Number(ev.target.value))} />
+        </div>
+        <div>
+          <label className="label">Alíquota de IR sobre o lucro (%)</label>
+          <input className="input mono" type="number" value={form.aliquotaIR ?? 15} onChange={(ev) => set('aliquotaIR', Number(ev.target.value))} />
         </div>
         <div className="flex items-end">
           <label className="flex items-center gap-2 text-sm text-slate-600">

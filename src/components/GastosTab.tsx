@@ -2,8 +2,8 @@
 import { AnimatePresence, motion } from 'motion/react';
 import { useState } from 'react';
 import type { Gasto, GastoCategoria, Imovel } from '../types';
-import { GASTO_CATEGORIAS } from '../types';
-import { formatBRL, gastoEhDedutivel } from '../utils/finance';
+import { GASTOS_AQUISICAO, GASTOS_VENDA } from '../types';
+import { faseDoGasto, formatBRL, gastoEhDedutivel } from '../utils/finance';
 import { novoId, store } from '../utils/storage';
 import { ConfirmPopover } from './ui';
 
@@ -46,9 +46,16 @@ function GastoEditor({
       <div>
         <label className="label">Categoria</label>
         <select className="input" value={f.categoria} onChange={(e) => setF({ ...f, categoria: e.target.value as GastoCategoria })}>
-          {GASTO_CATEGORIAS.map((c) => (
-            <option key={c} value={c}>{c}</option>
-          ))}
+          <optgroup label="Aquisição">
+            {GASTOS_AQUISICAO.map((c) => (
+              <option key={c} value={c}>{c}</option>
+            ))}
+          </optgroup>
+          <optgroup label="Venda">
+            {GASTOS_VENDA.map((c) => (
+              <option key={c} value={c}>{c}</option>
+            ))}
+          </optgroup>
         </select>
       </div>
       <div>
@@ -86,14 +93,25 @@ export function GastosTab({ imovel, gastos }: { imovel: Imovel; gastos: Gasto[] 
   const [novo, setNovo] = useState(false);
 
   const ordenados = [...gastos].sort((a, b) => (b.data || '').localeCompare(a.data || ''));
-  const total = gastos.reduce((s, g) => s + (Number(g.valor) || 0), 0);
+  const totalAquisicao = gastos
+    .filter((g) => faseDoGasto(g.categoria) === 'aquisicao')
+    .reduce((s, g) => s + (Number(g.valor) || 0), 0);
+  const totalVenda = gastos
+    .filter((g) => faseDoGasto(g.categoria) === 'venda')
+    .reduce((s, g) => s + (Number(g.valor) || 0), 0);
 
   return (
     <div>
-      <div className="mb-4 flex items-center justify-between">
-        <div>
-          <p className="text-sm text-slate-500">{gastos.length} lançamento(s)</p>
-          <p className="mono font-display text-xl font-bold text-caixa-orange-dark">{formatBRL(total)}</p>
+      <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+        <div className="flex gap-6">
+          <div>
+            <p className="text-xs uppercase tracking-wide text-slate-400">Custos de aquisição</p>
+            <p className="mono font-display text-xl font-bold text-caixa-blue">{formatBRL(totalAquisicao)}</p>
+          </div>
+          <div>
+            <p className="text-xs uppercase tracking-wide text-slate-400">Custos de venda</p>
+            <p className="mono font-display text-xl font-bold text-caixa-orange-dark">{formatBRL(totalVenda)}</p>
+          </div>
         </div>
         <button className="btn-orange" onClick={() => { setNovo(true); setEditandoId(null); }}>
           + Novo gasto
@@ -122,6 +140,11 @@ export function GastosTab({ imovel, gastos }: { imovel: Imovel; gastos: Gasto[] 
                 <div className="flex items-center justify-between gap-3">
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center gap-2">
+                      <span className={`rounded px-2 py-0.5 text-[10px] font-semibold uppercase ${
+                        faseDoGasto(g.categoria) === 'venda' ? 'bg-caixa-orange/15 text-caixa-orange-dark' : 'bg-caixa-blue/10 text-caixa-blue'
+                      }`}>
+                        {faseDoGasto(g.categoria) === 'venda' ? 'Venda' : 'Aquisição'}
+                      </span>
                       <span className="rounded bg-slate-100 px-2 py-0.5 text-[11px] font-medium text-slate-600">{g.categoria}</span>
                       {gastoEhDedutivel(g) && (
                         <span className="rounded bg-emerald-100 px-2 py-0.5 text-[10px] font-medium text-emerald-700" title="Dedutível no GCAP">

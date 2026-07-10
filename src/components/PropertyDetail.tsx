@@ -3,16 +3,17 @@ import { AnimatePresence, motion } from 'motion/react';
 import { useMemo, useState } from 'react';
 import type { EtapaDesocupacao, Gasto, Imovel, ImovelStatus } from '../types';
 import { ETAPAS_DESOCUPACAO, IMOVEL_STATUS } from '../types';
-import { formatBRL, formatPct, resumoFinanceiro } from '../utils/finance';
+import { formatBRL, formatPct, resultadoImovel, resumoFinanceiro } from '../utils/finance';
 import { store } from '../utils/storage';
 import { notificar, permissaoAtual } from '../utils/notifications';
 import { ConfirmPopover, StatusBadge, EtapaBadge, Thumb } from './ui';
 import { PropertyForm } from './PropertyForm';
 import { GastosTab } from './GastosTab';
+import { ResultadoTab } from './ResultadoTab';
 import { SociosTab } from './SociosTab';
 import { GcapTab } from './GcapTab';
 
-type SubAba = 'gastos' | 'sociedade' | 'desocupacao' | 'gcap';
+type SubAba = 'gastos' | 'resultado' | 'sociedade' | 'desocupacao' | 'gcap';
 
 export function PropertyDetail({
   imovel,
@@ -28,6 +29,7 @@ export function PropertyDetail({
 
   const gastosDoImovel = useMemo(() => gastos.filter((g) => g.imovelId === imovel.id), [gastos, imovel.id]);
   const resumo = resumoFinanceiro(imovel, gastos);
+  const resultado = resultadoImovel(imovel, gastos);
 
   async function atualizarStatus(status: ImovelStatus) {
     await store.salvarImovel({ ...imovel, status, updatedAt: new Date().toISOString() });
@@ -45,6 +47,7 @@ export function PropertyDetail({
 
   const subAbas: { id: SubAba; label: string; icone: string }[] = [
     { id: 'gastos', label: 'Gastos', icone: '💸' },
+    { id: 'resultado', label: 'Resultado', icone: '📈' },
     { id: 'sociedade', label: 'Sociedade', icone: '🤝' },
     { id: 'desocupacao', label: 'Desocupação', icone: '⚖️' },
     { id: 'gcap', label: 'Calculadora GCAP', icone: '🧮' },
@@ -111,15 +114,19 @@ export function PropertyDetail({
           </div>
         </div>
 
-        {/* Faixa de KPIs do imóvel */}
+        {/* Faixa de KPIs do imóvel (modelo da planilha) */}
         <div className="grid grid-cols-2 divide-slate-100 border-t border-slate-100 sm:grid-cols-4 sm:divide-x">
-          <MiniKpi label="Arrematação" valor={formatBRL(resumo.valorArrematacao)} />
-          <MiniKpi label="Gastos" valor={formatBRL(resumo.totalGastos)} cor="text-caixa-orange-dark" />
-          <MiniKpi label="Custo total" valor={formatBRL(resumo.custoTotal)} cor="text-caixa-blue" />
+          <MiniKpi label="Total investido" valor={formatBRL(resultado.totalInvestido)} cor="text-caixa-blue" />
+          <MiniKpi label="Valor de venda" valor={formatBRL(resultado.valorVenda)} cor="text-caixa-orange-dark" />
           <MiniKpi
-            label={resumo.vendido ? 'Lucro bruto' : 'ROI potencial'}
-            valor={resumo.vendido ? formatBRL(resumo.lucroBruto) : formatPct(resumo.roi)}
-            cor={resumo.vendido ? 'text-emerald-600' : 'text-slate-600'}
+            label="Lucro líquido"
+            valor={resultado.vendido ? formatBRL(resultado.lucroLiquido) : '—'}
+            cor={resultado.lucroLiquido >= 0 ? 'text-emerald-600' : 'text-red-600'}
+          />
+          <MiniKpi
+            label="ROI"
+            valor={resultado.vendido ? formatPct(resultado.roi) : '—'}
+            cor={resultado.roi >= 0 ? 'text-emerald-600' : 'text-slate-600'}
           />
         </div>
       </div>
@@ -154,6 +161,7 @@ export function PropertyDetail({
               transition={{ duration: 0.15 }}
             >
               {sub === 'gastos' && <GastosTab imovel={imovel} gastos={gastosDoImovel} />}
+              {sub === 'resultado' && <ResultadoTab imovel={imovel} gastos={gastosDoImovel} />}
               {sub === 'sociedade' && <SociosTab imovel={imovel} resumo={resumo} />}
               {sub === 'desocupacao' && (
                 <DesocupacaoTab imovel={imovel} onEtapa={atualizarEtapa} />

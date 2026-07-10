@@ -1,6 +1,13 @@
 // Fórmulas de receitas, despesas dedutíveis e custos consolidados.
-import type { Gasto, Imovel } from '../types';
-import { CATEGORIAS_DEDUTIVEIS_GCAP } from '../types';
+import type { FaseGasto, Gasto, GastoCategoria, Imovel } from '../types';
+import { CATEGORIAS_DEDUTIVEIS_GCAP, GASTOS_VENDA } from '../types';
+
+export const IR_PADRAO = 15; // alíquota de IR sobre o lucro (premissa padrão)
+
+// Classifica um gasto como custo de aquisição ou de venda.
+export function faseDoGasto(categoria: GastoCategoria): FaseGasto {
+  return GASTOS_VENDA.includes(categoria) ? 'venda' : 'aquisicao';
+}
 
 export function round2(n: number): number {
   const v = Number(n) || 0;
@@ -63,6 +70,65 @@ export function resumoFinanceiro(imovel: Imovel, gastos: Gasto[]): ResumoFinance
   };
 }
 
+// Resultado no modelo da planilha "Controle de Leilões":
+//   TOTAL INVESTIDO = arrematação + custos de aquisição
+//   SALDO LÍQUIDO DA VENDA = valor de venda − custos de venda
+//   LUCRO BRUTO = saldo líquido − total investido
+//   IMPOSTO IR = alíquota × lucro bruto (quando positivo)
+//   LUCRO LÍQUIDO = lucro bruto − IR ;  ROI = lucro líquido / total investido
+export interface ResultadoImovel {
+  arrematacao: number;
+  custosAquisicao: number;
+  totalInvestido: number;
+  valorVenda: number;
+  custosVenda: number;
+  saldoLiquidoVenda: number;
+  lucroBruto: number;
+  aliquotaIR: number;
+  impostoIR: number;
+  lucroLiquido: number;
+  roi: number;
+  vendido: boolean;
+}
+
+export function resultadoImovel(imovel: Imovel, gastos: Gasto[]): ResultadoImovel {
+  const doImovel = gastos.filter((g) => g.imovelId === imovel.id);
+  const custosAquisicao = doImovel
+    .filter((g) => faseDoGasto(g.categoria) === 'aquisicao')
+    .reduce((s, g) => s + (Number(g.valor) || 0), 0);
+  const custosVenda = doImovel
+    .filter((g) => faseDoGasto(g.categoria) === 'venda')
+    .reduce((s, g) => s + (Number(g.valor) || 0), 0);
+
+  const arrematacao = Number(imovel.valorArrematacao) || 0;
+  const totalInvestido = arrematacao + custosAquisicao;
+
+  const vendido = imovel.status === 'Vendido' && (Number(imovel.valorVenda) || 0) > 0;
+  const valorVenda = vendido ? Number(imovel.valorVenda) || 0 : 0;
+  const saldoLiquidoVenda = vendido ? valorVenda - custosVenda : 0;
+  const lucroBruto = vendido ? saldoLiquidoVenda - totalInvestido : 0;
+
+  const aliquotaIR = imovel.aliquotaIR != null ? Number(imovel.aliquotaIR) : IR_PADRAO;
+  const impostoIR = vendido ? round2(Math.max(0, lucroBruto) * (aliquotaIR / 100)) : 0;
+  const lucroLiquido = vendido ? lucroBruto - impostoIR : 0;
+  const roi = vendido && totalInvestido > 0 ? (lucroLiquido / totalInvestido) * 100 : 0;
+
+  return {
+    arrematacao: round2(arrematacao),
+    custosAquisicao: round2(custosAquisicao),
+    totalInvestido: round2(totalInvestido),
+    valorVenda: round2(valorVenda),
+    custosVenda: round2(custosVenda),
+    saldoLiquidoVenda: round2(saldoLiquidoVenda),
+    lucroBruto: round2(lucroBruto),
+    aliquotaIR,
+    impostoIR: round2(impostoIR),
+    lucroLiquido: round2(lucroLiquido),
+    roi: round2(roi),
+    vendido,
+  };
+}
+
 export interface ResumoPortfolio {
   totalImoveis: number;
   emEstoque: number;
@@ -84,12 +150,12 @@ export function resumoPortfolio(imoveis: Imovel[], gastos: Gasto[]): ResumoPortf
   const rois: number[] = [];
 
   for (const im of imoveis) {
-    const r = resumoFinanceiro(im, gastos);
-    capitalInvestido += r.custoTotal;
+    const r = resultadoImovel(im, gastos);
+    capitalInvestido += r.totalInvestido;
     if (r.vendido) {
       vendidos++;
-      receitaRealizada += r.receita;
-      lucroRealizado += r.lucroBruto;
+      receitaRealizada += r.valorVenda;
+      lucroRealizado += r.lucroLiquido; // lucro líquido (após IR), como na planilha
       rois.push(r.roi);
     } else {
       valorEstimadoCarteira += Number(im.valorAvaliacao) || im.valorArrematacao || 0;

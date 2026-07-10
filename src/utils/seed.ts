@@ -70,7 +70,7 @@ export async function semearSeVazio(): Promise<void> {
     {
       id: novoId('gst'),
       imovelId: im1.id,
-      categoria: 'Registro / Cartório',
+      categoria: 'Registro',
       descricao: 'Registro da matrícula',
       valor: 4200,
       data: diasAtras(88).slice(0, 10),
