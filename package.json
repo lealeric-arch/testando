@@ -48,6 +48,14 @@
       "dist/**/*",
       "electron/**/*"
     ],
+    "publish": [
+      {
+        "provider": "github",
+        "owner": "lealeric-arch",
+        "repo": "testando",
+        "releaseType": "release"
+      }
+    ],
     "win": {
       "target": "nsis",
       "artifactName": "EntreColunasLeiloes-Setup-${version}.${ext}"
