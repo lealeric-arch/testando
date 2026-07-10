@@ -1,0 +1,34 @@
+{
+  "name": "entre-colunas-leiloes",
+  "version": "1.0.0",
+  "description": "Programa desktop para controle de leilões — lotes, arrematantes, lances e financeiro.",
+  "main": "src/main.js",
+  "author": "Entre Colunas Leilões",
+  "license": "MIT",
+  "scripts": {
+    "start": "electron .",
+    "test": "node test/calc.test.js",
+    "dist": "electron-builder"
+  },
+  "build": {
+    "appId": "com.entrecolunas.leiloes",
+    "productName": "Entre Colunas Leilões",
+    "files": [
+      "src/**/*",
+      "assets/**/*"
+    ],
+    "win": {
+      "target": "nsis"
+    },
+    "linux": {
+      "target": "AppImage"
+    },
+    "mac": {
+      "target": "dmg"
+    }
+  },
+  "devDependencies": {
+    "electron": "^31.0.0",
+    "electron-builder": "^24.13.3"
+  }
+}
