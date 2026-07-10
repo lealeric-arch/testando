@@ -1,7 +1,7 @@
 {
   "name": "entre-colunas-leiloes",
   "private": true,
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "Gestão e planejamento de leilões de imóveis arrematados da Caixa Econômica Federal.",
   "author": {
     "name": "Entre Colunas Leilões"
