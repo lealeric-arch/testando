@@ -7,6 +7,7 @@ import {
   permissaoAtual,
   pedirPermissao,
   notificar,
+  limparHistoricoNotificacoes,
 } from '../utils/notifications';
 import { gerarAlertas } from '../utils/alerts';
 
@@ -94,6 +95,15 @@ export function NotificationSettings({ imoveis }: { imoveis: Imovel[] }) {
             ? `Há ${alertas.length} alerta(s) crítico(s) ativo(s) no momento.`
             : 'Nenhum alerta crítico ativo no momento.'}
         </p>
+        <button
+          className="btn-ghost mt-4"
+          onClick={() => {
+            limparHistoricoNotificacoes();
+            alert('Histórico de notificações limpo. Os alertas persistentes poderão ser reenviados.');
+          }}
+        >
+          Limpar histórico de notificações
+        </button>
       </div>
     </div>
   );

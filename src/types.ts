@@ -104,6 +104,9 @@ export const CATEGORIAS_DEDUTIVEIS_GCAP: GastoCategoria[] = [
   'Leiloeiro',
 ];
 
+// Identifica quem pagou uma despesa: o próprio investidor ('Voce') ou o id de um sócio.
+export type PagoPor = 'Voce' | string;
+
 export interface Gasto {
   id: string;
   imovelId: string;
@@ -112,21 +115,48 @@ export interface Gasto {
   valor: number;
   data: string; // ISO (yyyy-mm-dd)
   responsavel?: string;
+  pagoPor?: PagoPor; // quem desembolsou (alimenta a partilha)
   dedutivelGCAP?: boolean; // sobrescreve o padrão da categoria
 }
+
+export type PapelSocio = 'Investidor' | 'Operacional' | 'Visualizador';
+
+export const PAPEIS_SOCIO: PapelSocio[] = ['Investidor', 'Operacional', 'Visualizador'];
 
 export interface Socio {
   id: string;
   nome: string;
-  percentual: number; // participação societária (%)
+  percentual: number; // participação societária (%) — mantido p/ compatibilidade
+  participacaoImovel?: number; // % do capital do imóvel (arrematação)
+  participacaoLucro?: number; // % do lucro
+  papel?: PapelSocio;
   aporte?: number; // capital aportado (R$)
 }
+
+// Modalidade de aquisição do imóvel (Caixa).
+export type ModalidadeAquisicao =
+  | 'Leilão SFI'
+  | 'Venda Direta Online'
+  | 'Licitação Aberta'
+  | 'Concorrência Pública'
+  | 'Venda Online'
+  | 'Outra';
+
+export const MODALIDADES: ModalidadeAquisicao[] = [
+  'Leilão SFI',
+  'Venda Direta Online',
+  'Licitação Aberta',
+  'Concorrência Pública',
+  'Venda Online',
+  'Outra',
+];
 
 export interface Imovel {
   id: string;
   titulo: string;
   codigoCaixa?: string; // identificador do ativo (fonte mono)
   matricula?: string;
+  modalidade?: ModalidadeAquisicao;
   endereco?: string;
   cidade?: string;
   uf?: string;
@@ -138,6 +168,7 @@ export interface Imovel {
   valorAvaliacao?: number;
   valorVenda?: number;
   aliquotaIR?: number; // % de IR sobre o lucro (premissa; padrão 15%)
+  comissaoCorretorPct?: number; // % de comissão do corretor na venda (padrão 5%)
   dataArrematacao?: string;
   dataVenda?: string;
   createdAt: string; // ISO datetime
@@ -149,4 +180,14 @@ export interface Imovel {
   observacoes?: string;
 }
 
-export type Aba = 'dashboard' | 'portfolio' | 'detalhe' | 'notificacoes';
+// Simulação de viabilidade pré-lance (não persiste no imóvel).
+export interface ViabilidadeSimulacao {
+  titulo: string;
+  endereco?: string;
+  valorMercado: number;
+  margemDesejadaPct: number;
+  custoReformaEst: number;
+  outrosCustosEst: number;
+}
+
+export type Aba = 'dashboard' | 'portfolio' | 'detalhe' | 'viabilidade' | 'notificacoes';

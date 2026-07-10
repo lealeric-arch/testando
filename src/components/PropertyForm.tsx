@@ -1,7 +1,7 @@
 // Formulário (modal) para cadastro e edição de imóveis.
 import { useState } from 'react';
 import type { Imovel } from '../types';
-import { IMOVEL_STATUS, ETAPAS_DESOCUPACAO } from '../types';
+import { IMOVEL_STATUS, ETAPAS_DESOCUPACAO, MODALIDADES } from '../types';
 import { Modal } from './ui';
 import { novoId, store } from '../utils/storage';
 
@@ -45,11 +45,13 @@ export function PropertyForm({
       fotoUrl: form.fotoUrl || '',
       status: form.status || 'Arrematado',
       etapaDesocupacao: form.etapaDesocupacao || 'Não iniciada',
+      modalidade: form.modalidade,
       comprador: form.comprador || '',
       valorArrematacao: Number(form.valorArrematacao) || 0,
       valorAvaliacao: Number(form.valorAvaliacao) || 0,
       valorVenda: Number(form.valorVenda) || 0,
       aliquotaIR: form.aliquotaIR != null ? Number(form.aliquotaIR) : 15,
+      comissaoCorretorPct: form.comissaoCorretorPct != null ? Number(form.comissaoCorretorPct) : 5,
       dataArrematacao: form.dataArrematacao || '',
       dataVenda: form.dataVenda || '',
       createdAt: e?.createdAt ?? nowISO(),
@@ -77,6 +79,15 @@ export function PropertyForm({
         <div>
           <label className="label">Matrícula</label>
           <input className="input" value={form.matricula || ''} onChange={(ev) => set('matricula', ev.target.value)} />
+        </div>
+        <div className="col-span-2">
+          <label className="label">Modalidade de aquisição</label>
+          <select className="input" value={form.modalidade || ''} onChange={(ev) => set('modalidade', (ev.target.value || undefined) as Imovel['modalidade'])}>
+            <option value="">— selecione —</option>
+            {MODALIDADES.map((m) => (
+              <option key={m} value={m}>{m}</option>
+            ))}
+          </select>
         </div>
         <div className="col-span-2">
           <label className="label">Endereço</label>
@@ -137,6 +148,10 @@ export function PropertyForm({
         <div>
           <label className="label">Alíquota de IR sobre o lucro (%)</label>
           <input className="input mono" type="number" value={form.aliquotaIR ?? 15} onChange={(ev) => set('aliquotaIR', Number(ev.target.value))} />
+        </div>
+        <div>
+          <label className="label">Comissão do corretor na venda (%)</label>
+          <input className="input mono" type="number" value={form.comissaoCorretorPct ?? 5} onChange={(ev) => set('comissaoCorretorPct', Number(ev.target.value))} />
         </div>
         <div className="flex items-end">
           <label className="flex items-center gap-2 text-sm text-slate-600">

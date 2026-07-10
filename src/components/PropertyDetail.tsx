@@ -6,12 +6,15 @@ import { ETAPAS_DESOCUPACAO, IMOVEL_STATUS } from '../types';
 import { formatBRL, formatPct, resultadoImovel, resumoFinanceiro } from '../utils/finance';
 import { store } from '../utils/storage';
 import { notificar, permissaoAtual } from '../utils/notifications';
+import { obterFotoImovel } from '../utils/images';
+import { exportarPlanilhaExcel } from '../utils/excelExport';
 import { ConfirmPopover, StatusBadge, EtapaBadge, Thumb } from './ui';
 import { PropertyForm } from './PropertyForm';
 import { GastosTab } from './GastosTab';
 import { ResultadoTab } from './ResultadoTab';
 import { SociosTab } from './SociosTab';
 import { GcapTab } from './GcapTab';
+import { ReportView } from './ReportView';
 
 type SubAba = 'gastos' | 'resultado' | 'sociedade' | 'desocupacao' | 'gcap';
 
@@ -26,6 +29,7 @@ export function PropertyDetail({
 }) {
   const [sub, setSub] = useState<SubAba>('gastos');
   const [editando, setEditando] = useState(false);
+  const [relatorioAberto, setRelatorioAberto] = useState(false);
 
   const gastosDoImovel = useMemo(() => gastos.filter((g) => g.imovelId === imovel.id), [gastos, imovel.id]);
   const resumo = resumoFinanceiro(imovel, gastos);
@@ -63,7 +67,7 @@ export function PropertyDetail({
       <div className="card overflow-hidden">
         <div className="flex flex-col gap-4 p-6 sm:flex-row">
           <div className="h-40 w-full shrink-0 overflow-hidden rounded-lg bg-slate-100 sm:w-64">
-            <Thumb src={imovel.fotoUrl} alt={imovel.titulo} className="h-full w-full object-cover" />
+            <Thumb src={obterFotoImovel(imovel.id + (imovel.endereco || ''), imovel.fotoUrl)} alt={imovel.titulo} className="h-full w-full object-cover" />
           </div>
 
           <div className="flex-1">
@@ -80,7 +84,9 @@ export function PropertyDetail({
                   </p>
                 )}
               </div>
-              <div className="flex gap-2">
+              <div className="flex flex-wrap gap-2">
+                <button className="btn-ghost" onClick={() => exportarPlanilhaExcel(imovel, gastosDoImovel)}>⬇ Excel</button>
+                <button className="btn-ghost" onClick={() => setRelatorioAberto(true)}>🖨️ Relatório</button>
                 <button className="btn-ghost" onClick={() => setEditando(true)}>Editar</button>
                 <ConfirmPopover
                   mensagem={`Excluir "${imovel.titulo}" e todos os gastos vinculados?`}
@@ -173,6 +179,7 @@ export function PropertyDetail({
       </div>
 
       <PropertyForm aberto={editando} onClose={() => setEditando(false)} imovelExistente={imovel} />
+      <ReportView aberto={relatorioAberto} onClose={() => setRelatorioAberto(false)} imovel={imovel} gastos={gastosDoImovel} />
     </div>
   );
 }

@@ -1,8 +1,10 @@
 // Dashboard de performance financeira, KPIs e painel de alertas operacionais críticos.
 import { motion } from 'motion/react';
+import { useState } from 'react';
 import type { Gasto, Imovel } from '../types';
 import { formatBRL, formatPct, resumoPortfolio } from '../utils/finance';
 import { gerarAlertas } from '../utils/alerts';
+import { ExportModal } from './ExportModal';
 
 function KPI({
   label,
@@ -37,6 +39,7 @@ export function Dashboard({
 }) {
   const r = resumoPortfolio(imoveis, gastos);
   const alertas = gerarAlertas(imoveis);
+  const [exportAberto, setExportAberto] = useState(false);
 
   return (
     <div className="space-y-8">
@@ -45,10 +48,14 @@ export function Dashboard({
           <h2 className="font-display text-2xl font-bold text-slate-800">Dashboard</h2>
           <p className="text-sm text-slate-500">Performance da carteira de imóveis arrematados.</p>
         </div>
-        <button className="btn-primary" onClick={onIrPortfolio}>
-          Ver portfólio →
-        </button>
+        <div className="flex gap-2">
+          <button className="btn-ghost" onClick={() => setExportAberto(true)}>⬇ Exportar</button>
+          <button className="btn-primary" onClick={onIrPortfolio}>
+            Ver portfólio →
+          </button>
+        </div>
       </div>
+      <ExportModal aberto={exportAberto} onClose={() => setExportAberto(false)} imoveis={imoveis} gastos={gastos} />
 
       {/* KPIs */}
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">

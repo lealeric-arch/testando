@@ -9,6 +9,7 @@ import { notificar, permissaoAtual } from './utils/notifications';
 import { Dashboard } from './components/Dashboard';
 import { PropertyList } from './components/PropertyList';
 import { PropertyDetail } from './components/PropertyDetail';
+import { CalculadoraViabilidade } from './components/CalculadoraViabilidade';
 import { NotificationSettings } from './components/NotificationSettings';
 
 export default function App() {
@@ -59,12 +60,13 @@ export default function App() {
   const abas: { id: Aba; label: string; icone: string }[] = [
     { id: 'dashboard', label: 'Dashboard', icone: '📊' },
     { id: 'portfolio', label: 'Portfólio', icone: '🏢' },
+    { id: 'viabilidade', label: 'Viabilidade', icone: '🧭' },
     { id: 'notificacoes', label: 'Notificações', icone: '🔔' },
   ];
 
   return (
     <div className="min-h-screen">
-      <header className="sticky top-0 z-40 border-b border-slate-200 bg-white/90 backdrop-blur">
+      <header className="sticky top-0 z-40 border-b-2 border-caixa-orange/70 bg-white/90 backdrop-blur">
         <div className="mx-auto flex max-w-7xl items-center justify-between px-6 py-3">
           <div className="flex items-center gap-3">
             <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-caixa-blue">
@@ -134,10 +136,21 @@ export default function App() {
                 }}
               />
             )}
+            {aba === 'viabilidade' && <CalculadoraViabilidade onAbrirImovel={abrirImovel} />}
             {aba === 'notificacoes' && <NotificationSettings imoveis={imoveis} />}
           </motion.div>
         </AnimatePresence>
       </main>
+
+      <footer className="mt-8 border-t border-slate-200 bg-white/60 py-6">
+        <div className="mx-auto max-w-7xl px-6 text-center text-xs text-slate-400">
+          <p>
+            A <strong>Entre Colunas Leilões</strong> atua de forma independente e não possui vínculo, patrocínio ou
+            representação da Caixa Econômica Federal. As simulações são estimativas de planejamento, sem valor fiscal.
+          </p>
+          <p className="mt-1">© 2026 Entre Colunas Leilões. Licenciado para Eric Leal.</p>
+        </div>
+      </footer>
     </div>
   );
 }

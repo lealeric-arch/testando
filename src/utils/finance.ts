@@ -76,12 +76,16 @@ export function resumoFinanceiro(imovel: Imovel, gastos: Gasto[]): ResumoFinance
 //   LUCRO BRUTO = saldo líquido − total investido
 //   IMPOSTO IR = alíquota × lucro bruto (quando positivo)
 //   LUCRO LÍQUIDO = lucro bruto − IR ;  ROI = lucro líquido / total investido
+export const COMISSAO_CORRETOR_PADRAO = 5; // % de comissão do corretor na venda
+
 export interface ResultadoImovel {
   arrematacao: number;
   custosAquisicao: number;
   totalInvestido: number;
   valorVenda: number;
   custosVenda: number;
+  comissaoCorretorPct: number;
+  comissaoCorretor: number;
   saldoLiquidoVenda: number;
   lucroBruto: number;
   aliquotaIR: number;
@@ -105,7 +109,13 @@ export function resultadoImovel(imovel: Imovel, gastos: Gasto[]): ResultadoImove
 
   const vendido = imovel.status === 'Vendido' && (Number(imovel.valorVenda) || 0) > 0;
   const valorVenda = vendido ? Number(imovel.valorVenda) || 0 : 0;
-  const saldoLiquidoVenda = vendido ? valorVenda - custosVenda : 0;
+
+  // Comissão do corretor incide sobre o valor de venda (padrão 5%).
+  const comissaoCorretorPct =
+    imovel.comissaoCorretorPct != null ? Number(imovel.comissaoCorretorPct) : COMISSAO_CORRETOR_PADRAO;
+  const comissaoCorretor = vendido ? round2(valorVenda * (comissaoCorretorPct / 100)) : 0;
+
+  const saldoLiquidoVenda = vendido ? valorVenda - custosVenda - comissaoCorretor : 0;
   const lucroBruto = vendido ? saldoLiquidoVenda - totalInvestido : 0;
 
   const aliquotaIR = imovel.aliquotaIR != null ? Number(imovel.aliquotaIR) : IR_PADRAO;
@@ -119,6 +129,8 @@ export function resultadoImovel(imovel: Imovel, gastos: Gasto[]): ResultadoImove
     totalInvestido: round2(totalInvestido),
     valorVenda: round2(valorVenda),
     custosVenda: round2(custosVenda),
+    comissaoCorretorPct,
+    comissaoCorretor: round2(comissaoCorretor),
     saldoLiquidoVenda: round2(saldoLiquidoVenda),
     lucroBruto: round2(lucroBruto),
     aliquotaIR,
@@ -177,10 +189,142 @@ export function resumoPortfolio(imoveis: Imovel[], gastos: Gasto[]): ResumoPortf
   };
 }
 
-// Rateio de resultado entre sócios conforme percentual de participação.
+// Rateio de resultado entre sócios conforme participação no lucro (fallback: percentual).
 export function rateioSocios(imovel: Imovel, lucro: number) {
-  return (imovel.socios || []).map((s) => ({
-    ...s,
-    resultado: round2((lucro * (Number(s.percentual) || 0)) / 100),
-  }));
+  return (imovel.socios || []).map((s) => {
+    const pct = s.participacaoLucro != null ? Number(s.participacaoLucro) : Number(s.percentual) || 0;
+    return { ...s, percentual: pct, resultado: round2((lucro * pct) / 100) };
+  });
+}
+
+// ---- Calculadora de Viabilidade Pré-Lance ----
+export interface ViabilidadeOpts {
+  usarFinanciamento: boolean;
+  entradaPct: number; // % de entrada no financiamento Caixa
+  taxaAvaliacaoCef: number; // taxa de avaliação/emissão CEF (R$)
+}
+
+export interface ViabilidadeResultado {
+  lucroDesejado: number;
+  lanceMaximo: number;
+  custoTotalEstimado: number; // à vista: lance + reforma + outros
+  // Alavancagem (financiamento Caixa)
+  valorEntrada: number;
+  valorFinanciado: number;
+  capitalNecessario: number; // entrada + reforma + outros + taxa avaliação
+  roiSimples: number; // lucro / custo à vista
+  roiAlavancado: number; // lucro / capital necessário
+  percentualDoMercado: number; // lance / valor de mercado
+}
+
+export function calcularLanceMaximo(
+  sim: { valorMercado: number; margemDesejadaPct: number; custoReformaEst: number; outrosCustosEst: number },
+  opts?: ViabilidadeOpts,
+): ViabilidadeResultado {
+  const valorMercado = Number(sim.valorMercado) || 0;
+  const reforma = Number(sim.custoReformaEst) || 0;
+  const outros = Number(sim.outrosCustosEst) || 0;
+  const margem = Number(sim.margemDesejadaPct) || 0;
+
+  const lucroDesejado = round2(valorMercado * (margem / 100));
+  const lanceMaximo = round2(Math.max(0, valorMercado - lucroDesejado - reforma - outros));
+  const custoTotalEstimado = round2(lanceMaximo + reforma + outros);
+  const roiSimples = custoTotalEstimado > 0 ? round2((lucroDesejado / custoTotalEstimado) * 100) : 0;
+  const percentualDoMercado = valorMercado > 0 ? round2((lanceMaximo / valorMercado) * 100) : 0;
+
+  const entradaPct = opts?.usarFinanciamento ? Number(opts.entradaPct) || 0 : 100;
+  const taxaAval = opts?.usarFinanciamento ? Number(opts.taxaAvaliacaoCef) || 0 : 0;
+  const valorEntrada = round2(lanceMaximo * (entradaPct / 100));
+  const valorFinanciado = round2(lanceMaximo - valorEntrada);
+  const capitalNecessario = round2(valorEntrada + reforma + outros + taxaAval);
+  const roiAlavancado = capitalNecessario > 0 ? round2((lucroDesejado / capitalNecessario) * 100) : 0;
+
+  return {
+    lucroDesejado,
+    lanceMaximo,
+    custoTotalEstimado,
+    valorEntrada,
+    valorFinanciado,
+    capitalNecessario,
+    roiSimples,
+    roiAlavancado,
+    percentualDoMercado,
+  };
+}
+
+// ---- Partilha / Prestação de contas por participante ----
+export interface ParticipantePartilha {
+  id: string; // 'Voce' ou id do sócio
+  nome: string;
+  papel: string;
+  participacaoImovel: number;
+  participacaoLucro: number;
+  reembolsoGastos: number; // gastos que este participante pagou
+  retornoCapital: number; // parcela da arrematação proporcional
+  lucro: number; // lucro líquido proporcional
+  totalReceber: number;
+}
+
+export function calcularPartilhaSocios(imovel: Imovel, gastos: Gasto[]): ParticipantePartilha[] {
+  const r = resultadoImovel(imovel, gastos);
+  const doImovel = gastos.filter((g) => g.imovelId === imovel.id);
+  const socios = imovel.socios || [];
+
+  const partImovelSocios = socios.reduce(
+    (s, x) => s + (x.participacaoImovel != null ? Number(x.participacaoImovel) : Number(x.percentual) || 0),
+    0,
+  );
+  const partLucroSocios = socios.reduce(
+    (s, x) => s + (x.participacaoLucro != null ? Number(x.participacaoLucro) : Number(x.percentual) || 0),
+    0,
+  );
+
+  const reembolsoDe = (chave: string) =>
+    round2(
+      doImovel
+        .filter((g) => (g.pagoPor || 'Voce') === chave)
+        .reduce((s, g) => s + (Number(g.valor) || 0), 0),
+    );
+
+  const monta = (
+    id: string,
+    nome: string,
+    papel: string,
+    partImovel: number,
+    partLucro: number,
+  ): ParticipantePartilha => {
+    const reembolsoGastos = reembolsoDe(id);
+    const retornoCapital = round2(r.arrematacao * (partImovel / 100));
+    const lucro = round2(r.lucroLiquido * (partLucro / 100));
+    return {
+      id,
+      nome,
+      papel,
+      participacaoImovel: round2(partImovel),
+      participacaoLucro: round2(partLucro),
+      reembolsoGastos,
+      retornoCapital,
+      lucro,
+      totalReceber: round2(reembolsoGastos + retornoCapital + lucro),
+    };
+  };
+
+  const voce = monta(
+    'Voce',
+    'Você',
+    'Investidor',
+    Math.max(0, 100 - partImovelSocios),
+    Math.max(0, 100 - partLucroSocios),
+  );
+  const listaSocios = socios.map((s) =>
+    monta(
+      s.id,
+      s.nome,
+      s.papel || 'Investidor',
+      s.participacaoImovel != null ? Number(s.participacaoImovel) : Number(s.percentual) || 0,
+      s.participacaoLucro != null ? Number(s.participacaoLucro) : Number(s.percentual) || 0,
+    ),
+  );
+
+  return [voce, ...listaSocios];
 }

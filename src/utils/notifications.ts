@@ -85,3 +85,12 @@ export function limparChave(chave: string) {
   const enviadas = chavesEnviadas();
   if (enviadas.delete(chave)) salvarChaves(enviadas);
 }
+
+// Limpa todo o histórico de notificações já enviadas (permite reenviar os alertas).
+export function limparHistoricoNotificacoes() {
+  try {
+    localStorage.removeItem(DEDUPE_KEY);
+  } catch {
+    /* ignora */
+  }
+}

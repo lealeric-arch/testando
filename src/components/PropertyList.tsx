@@ -4,8 +4,10 @@ import { useState } from 'react';
 import type { Gasto, Imovel } from '../types';
 import { formatBRL, resumoFinanceiro } from '../utils/finance';
 import { store } from '../utils/storage';
+import { obterFotoImovel } from '../utils/images';
 import { ConfirmPopover, StatusBadge, EtapaBadge, Thumb } from './ui';
 import { PropertyForm } from './PropertyForm';
+import { ExportModal } from './ExportModal';
 
 function PropertyCard({
   imovel,
@@ -29,7 +31,7 @@ function PropertyCard({
       onClick={onAbrir}
     >
       <div className="relative h-40 bg-slate-100">
-        <Thumb src={imovel.fotoUrl} alt={imovel.titulo} className="h-full w-full object-cover" />
+        <Thumb src={obterFotoImovel(imovel.id + (imovel.endereco || ''), imovel.fotoUrl)} alt={imovel.titulo} className="h-full w-full object-cover" />
         <div className="absolute left-3 top-3">
           <StatusBadge status={imovel.status} />
         </div>
@@ -88,6 +90,7 @@ export function PropertyList({
 }) {
   const [busca, setBusca] = useState('');
   const [formAberto, setFormAberto] = useState(false);
+  const [exportAberto, setExportAberto] = useState(false);
 
   const filtrados = imoveis.filter((i) => {
     if (!busca) return true;
@@ -109,6 +112,7 @@ export function PropertyList({
             value={busca}
             onChange={(e) => setBusca(e.target.value)}
           />
+          <button className="btn-ghost" onClick={() => setExportAberto(true)}>⬇ Exportar</button>
           <button className="btn-primary" onClick={() => setFormAberto(true)}>
             + Novo imóvel
           </button>
@@ -128,6 +132,7 @@ export function PropertyList({
       )}
 
       <PropertyForm aberto={formAberto} onClose={() => setFormAberto(false)} />
+      <ExportModal aberto={exportAberto} onClose={() => setExportAberto(false)} imoveis={imoveis} gastos={gastos} />
     </div>
   );
 }

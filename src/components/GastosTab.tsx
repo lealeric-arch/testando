@@ -1,7 +1,7 @@
 // Aba de Gastos com edição inline no próprio card e recálculo instantâneo.
 import { AnimatePresence, motion } from 'motion/react';
 import { useState } from 'react';
-import type { Gasto, GastoCategoria, Imovel } from '../types';
+import type { Gasto, GastoCategoria, Imovel, Socio } from '../types';
 import { GASTOS_AQUISICAO, GASTOS_VENDA } from '../types';
 import { faseDoGasto, formatBRL, gastoEhDedutivel } from '../utils/finance';
 import { novoId, store } from '../utils/storage';
@@ -10,14 +10,16 @@ import { ConfirmPopover } from './ui';
 function GastoEditor({
   gasto,
   imovelId,
+  socios,
   onFechar,
 }: {
   gasto?: Gasto;
   imovelId: string;
+  socios: Socio[];
   onFechar: () => void;
 }) {
   const [f, setF] = useState<Partial<Gasto>>(
-    gasto ?? { categoria: 'Reforma', data: new Date().toISOString().slice(0, 10), valor: 0 },
+    gasto ?? { categoria: 'Reforma', data: new Date().toISOString().slice(0, 10), valor: 0, pagoPor: 'Voce' },
   );
 
   async function salvar() {
@@ -31,6 +33,7 @@ function GastoEditor({
       valor: Number(f.valor) || 0,
       data: f.data || new Date().toISOString().slice(0, 10),
       responsavel: f.responsavel || '',
+      pagoPor: f.pagoPor || 'Voce',
       dedutivelGCAP: f.dedutivelGCAP,
     };
     await store.salvarGasto(novo);
@@ -67,7 +70,16 @@ function GastoEditor({
         <input className="input" type="date" value={f.data || ''} onChange={(e) => setF({ ...f, data: e.target.value })} />
       </div>
       <div>
-        <label className="label">Responsável pelo pagamento</label>
+        <label className="label">Pago por</label>
+        <select className="input" value={f.pagoPor || 'Voce'} onChange={(e) => setF({ ...f, pagoPor: e.target.value })}>
+          <option value="Voce">Você</option>
+          {socios.map((s) => (
+            <option key={s.id} value={s.id}>{s.nome}</option>
+          ))}
+        </select>
+      </div>
+      <div>
+        <label className="label">Responsável / observação</label>
         <input className="input" value={f.responsavel || ''} onChange={(e) => setF({ ...f, responsavel: e.target.value })} />
       </div>
       <div className="col-span-2 flex items-center justify-between">
@@ -121,7 +133,7 @@ export function GastosTab({ imovel, gastos }: { imovel: Imovel; gastos: Gasto[] 
       <AnimatePresence>
         {novo && (
           <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }} className="mb-4">
-            <GastoEditor imovelId={imovel.id} onFechar={() => setNovo(false)} />
+            <GastoEditor imovelId={imovel.id} socios={imovel.socios || []} onFechar={() => setNovo(false)} />
           </motion.div>
         )}
       </AnimatePresence>
@@ -135,7 +147,7 @@ export function GastosTab({ imovel, gastos }: { imovel: Imovel; gastos: Gasto[] 
           {ordenados.map((g) => (
             <div key={g.id} className="rounded-lg border border-slate-200 p-3">
               {editandoId === g.id ? (
-                <GastoEditor gasto={g} imovelId={imovel.id} onFechar={() => setEditandoId(null)} />
+                <GastoEditor gasto={g} imovelId={imovel.id} socios={imovel.socios || []} onFechar={() => setEditandoId(null)} />
               ) : (
                 <div className="flex items-center justify-between gap-3">
                   <div className="min-w-0 flex-1">
@@ -155,6 +167,7 @@ export function GastosTab({ imovel, gastos }: { imovel: Imovel; gastos: Gasto[] 
                     </div>
                     <p className="mt-0.5 text-xs text-slate-400">
                       {g.data ? new Date(g.data + 'T00:00:00').toLocaleDateString('pt-BR') : '—'}
+                      {` · pago por ${g.pagoPor && g.pagoPor !== 'Voce' ? (imovel.socios || []).find((s) => s.id === g.pagoPor)?.nome || '—' : 'Você'}`}
                       {g.responsavel ? ` · ${g.responsavel}` : ''}
                     </p>
                   </div>
