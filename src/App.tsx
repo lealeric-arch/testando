@@ -16,10 +16,9 @@ export default function App() {
   const [gastos, setGastos] = useState<Gasto[]>([]);
   const [aba, setAba] = useState<Aba>('dashboard');
   const [imovelSelecionado, setImovelSelecionado] = useState<string | null>(null);
-  const [modo, setModo] = useState<'firestore' | 'local'>('local');
   const [pronto, setPronto] = useState(false);
 
-  // Inicializa store + sincronização.
+  // Inicializa a base local.
   useEffect(() => {
     let unsub = () => {};
     (async () => {
@@ -29,7 +28,6 @@ export default function App() {
         setImoveis(imoveis);
         setGastos(gastos);
       });
-      setModo(store.modoAtual);
       setPronto(true);
     })();
     return () => unsub();
@@ -105,12 +103,8 @@ export default function App() {
           </nav>
 
           <div className="hidden items-center gap-2 text-xs sm:flex">
-            <span
-              className={`h-2 w-2 rounded-full ${modo === 'firestore' ? 'bg-emerald-500' : 'bg-slate-400'}`}
-            />
-            <span className="text-slate-500">
-              {modo === 'firestore' ? 'Sincronizado (nuvem)' : 'Offline (local)'}
-            </span>
+            <span className="h-2 w-2 rounded-full bg-emerald-500" />
+            <span className="text-slate-500">Dados salvos neste computador</span>
           </div>
         </div>
       </header>

@@ -1,0 +1,57 @@
+name: Build desktop installers
+
+# Gera os instaladores desktop (Windows/macOS/Linux) e disponibiliza para download
+# como artefatos da execução. Rode manualmente em Actions → "Build desktop installers"
+# → "Run workflow", ou automaticamente a cada push nesta branch.
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - claude/pc-auction-control-259bzg
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: windows-latest
+            script: dist:win
+            artifact: instalador-windows
+            path: release/*.exe
+          - os: macos-latest
+            script: dist:mac
+            artifact: instalador-macos
+            path: release/*.dmg
+          - os: ubuntu-latest
+            script: dist:linux
+            artifact: instalador-linux
+            path: release/*.AppImage
+
+    runs-on: ${{ matrix.os }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Instalar dependências
+        run: npm ci
+
+      - name: Gerar instalador
+        env:
+          # Build sem assinatura de código (evita erros de certificado no CI).
+          CSC_IDENTITY_AUTO_DISCOVERY: false
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: npm run ${{ matrix.script }}
+
+      - name: Publicar artefato
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.artifact }}
+          path: ${{ matrix.path }}
+          if-no-files-found: error

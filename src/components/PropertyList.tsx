@@ -4,7 +4,7 @@ import { useState } from 'react';
 import type { Gasto, Imovel } from '../types';
 import { formatBRL, resumoFinanceiro } from '../utils/finance';
 import { store } from '../utils/storage';
-import { ConfirmPopover, StatusBadge, EtapaBadge } from './ui';
+import { ConfirmPopover, StatusBadge, EtapaBadge, Thumb } from './ui';
 import { PropertyForm } from './PropertyForm';
 
 function PropertyCard({
@@ -29,11 +29,7 @@ function PropertyCard({
       onClick={onAbrir}
     >
       <div className="relative h-40 bg-slate-100">
-        {imovel.fotoUrl ? (
-          <img src={imovel.fotoUrl} alt={imovel.titulo} className="h-full w-full object-cover" loading="lazy" />
-        ) : (
-          <div className="flex h-full items-center justify-center text-4xl text-slate-300">🏠</div>
-        )}
+        <Thumb src={imovel.fotoUrl} alt={imovel.titulo} className="h-full w-full object-cover" />
         <div className="absolute left-3 top-3">
           <StatusBadge status={imovel.status} />
         </div>

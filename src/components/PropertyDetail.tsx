@@ -1,13 +1,12 @@
 // Detalhamento do ativo com 4 abas financeiras: Gastos, Sociedade, Desocupação e Calculadora GCAP.
 import { AnimatePresence, motion } from 'motion/react';
 import { useMemo, useState } from 'react';
-import type { EtapaDesocupacao, Gasto, GastoCategoria, Imovel, ImovelStatus } from '../types';
-import { ETAPAS_DESOCUPACAO, GASTO_CATEGORIAS, IMOVEL_STATUS } from '../types';
-import { formatBRL, formatPct, gastoEhDedutivel, rateioSocios, resumoFinanceiro } from '../utils/finance';
-import { calcularGCAP } from '../utils/gcap';
-import { novoId, store } from '../utils/storage';
+import type { EtapaDesocupacao, Gasto, Imovel, ImovelStatus } from '../types';
+import { ETAPAS_DESOCUPACAO, IMOVEL_STATUS } from '../types';
+import { formatBRL, formatPct, resumoFinanceiro } from '../utils/finance';
+import { store } from '../utils/storage';
 import { notificar, permissaoAtual } from '../utils/notifications';
-import { ConfirmPopover, StatusBadge, EtapaBadge, Modal } from './ui';
+import { ConfirmPopover, StatusBadge, EtapaBadge, Thumb } from './ui';
 import { PropertyForm } from './PropertyForm';
 import { GastosTab } from './GastosTab';
 import { SociosTab } from './SociosTab';
@@ -61,11 +60,7 @@ export function PropertyDetail({
       <div className="card overflow-hidden">
         <div className="flex flex-col gap-4 p-6 sm:flex-row">
           <div className="h-40 w-full shrink-0 overflow-hidden rounded-lg bg-slate-100 sm:w-64">
-            {imovel.fotoUrl ? (
-              <img src={imovel.fotoUrl} alt={imovel.titulo} className="h-full w-full object-cover" />
-            ) : (
-              <div className="flex h-full items-center justify-center text-5xl text-slate-300">🏠</div>
-            )}
+            <Thumb src={imovel.fotoUrl} alt={imovel.titulo} className="h-full w-full object-cover" />
           </div>
 
           <div className="flex-1">

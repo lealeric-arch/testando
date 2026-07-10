@@ -54,6 +54,19 @@ export function Modal({
   );
 }
 
+// ---- Miniatura com fallback (imagem quebrada / offline) ----
+export function Thumb({ src, alt, className = '' }: { src?: string; alt: string; className?: string }) {
+  const [erro, setErro] = useState(false);
+  if (!src || erro) {
+    return (
+      <div className={`flex h-full w-full items-center justify-center bg-slate-100 text-4xl text-slate-300 ${className}`}>
+        🏠
+      </div>
+    );
+  }
+  return <img src={src} alt={alt} className={className} loading="lazy" onError={() => setErro(true)} />;
+}
+
 // ---- Badge de status do imóvel ----
 const STATUS_CORES: Record<ImovelStatus, string> = {
   Arrematado: 'bg-sky-100 text-sky-700',

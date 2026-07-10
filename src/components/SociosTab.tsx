@@ -11,11 +11,14 @@ export function SociosTab({ imovel, resumo }: { imovel: Imovel; resumo: ResumoFi
   const [pct, setPct] = useState('');
   const [aporte, setAporte] = useState('');
 
+  const MAX_SOCIOS = 5;
   const socios = imovel.socios || [];
   const somaPct = socios.reduce((s, x) => s + (Number(x.percentual) || 0), 0);
   const rateio = rateioSocios(imovel, resumo.vendido ? resumo.lucroBruto : 0);
+  const limiteAtingido = socios.length >= MAX_SOCIOS;
 
   async function adicionar() {
+    if (limiteAtingido) return alert(`Máximo de ${MAX_SOCIOS} sócios por arrematação.`);
     if (!nome.trim() || !(Number(pct) > 0)) return alert('Informe nome e percentual.');
     const novo: Socio = {
       id: novoId('soc'),
@@ -35,9 +38,14 @@ export function SociosTab({ imovel, resumo }: { imovel: Imovel; resumo: ResumoFi
     <div>
       <div className="mb-4 flex items-center justify-between">
         <h4 className="font-display font-semibold text-slate-800">Quadro societário</h4>
-        <span className={`rounded-full px-3 py-1 text-xs font-semibold ${somaPct === 100 ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'}`}>
-          Participação total: {formatPct(somaPct)}
-        </span>
+        <div className="flex items-center gap-2">
+          <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-medium text-slate-500">
+            {socios.length}/{MAX_SOCIOS} sócios
+          </span>
+          <span className={`rounded-full px-3 py-1 text-xs font-semibold ${somaPct === 100 ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'}`}>
+            Participação total: {formatPct(somaPct)}
+          </span>
+        </div>
       </div>
 
       {socios.length === 0 ? (
@@ -78,23 +86,29 @@ export function SociosTab({ imovel, resumo }: { imovel: Imovel; resumo: ResumoFi
       )}
 
       {/* Adicionar sócio */}
-      <div className="mt-5 grid grid-cols-1 gap-3 rounded-lg bg-slate-50 p-4 sm:grid-cols-4">
-        <div className="sm:col-span-2">
-          <label className="label">Nome do sócio</label>
-          <input className="input" value={nome} onChange={(e) => setNome(e.target.value)} />
+      {limiteAtingido ? (
+        <div className="mt-5 rounded-lg border border-dashed border-slate-200 bg-slate-50 p-4 text-center text-sm text-slate-500">
+          Limite de {MAX_SOCIOS} sócios por arrematação atingido.
         </div>
-        <div>
-          <label className="label">Participação (%)</label>
-          <input className="input mono" type="number" value={pct} onChange={(e) => setPct(e.target.value)} />
+      ) : (
+        <div className="mt-5 grid grid-cols-1 gap-3 rounded-lg bg-slate-50 p-4 sm:grid-cols-4">
+          <div className="sm:col-span-2">
+            <label className="label">Nome do sócio</label>
+            <input className="input" value={nome} onChange={(e) => setNome(e.target.value)} />
+          </div>
+          <div>
+            <label className="label">Participação (%)</label>
+            <input className="input mono" type="number" value={pct} onChange={(e) => setPct(e.target.value)} />
+          </div>
+          <div>
+            <label className="label">Aporte (R$)</label>
+            <input className="input mono" type="number" value={aporte} onChange={(e) => setAporte(e.target.value)} />
+          </div>
+          <div className="sm:col-span-4 flex justify-end">
+            <button className="btn-primary" onClick={adicionar}>+ Adicionar sócio</button>
+          </div>
         </div>
-        <div>
-          <label className="label">Aporte (R$)</label>
-          <input className="input mono" type="number" value={aporte} onChange={(e) => setAporte(e.target.value)} />
-        </div>
-        <div className="sm:col-span-4 flex justify-end">
-          <button className="btn-primary" onClick={adicionar}>+ Adicionar sócio</button>
-        </div>
-      </div>
+      )}
 
       {!resumo.vendido && (
         <p className="mt-3 text-xs text-slate-400">O rateio de resultado é calculado após a venda do imóvel.</p>
