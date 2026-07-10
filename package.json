@@ -1,34 +1,29 @@
 {
   "name": "entre-colunas-leiloes",
+  "private": true,
   "version": "1.0.0",
-  "description": "Programa desktop para controle de leilões — lotes, arrematantes, lances e financeiro.",
-  "main": "src/main.js",
-  "author": "Entre Colunas Leilões",
-  "license": "MIT",
+  "description": "Gestão e planejamento de leilões de imóveis arrematados da Caixa Econômica Federal.",
+  "type": "module",
   "scripts": {
-    "start": "electron .",
-    "test": "node test/calc.test.js",
-    "dist": "electron-builder"
+    "dev": "vite",
+    "build": "tsc -b && vite build",
+    "preview": "vite preview",
+    "typecheck": "tsc --noEmit"
   },
-  "build": {
-    "appId": "com.entrecolunas.leiloes",
-    "productName": "Entre Colunas Leilões",
-    "files": [
-      "src/**/*",
-      "assets/**/*"
-    ],
-    "win": {
-      "target": "nsis"
-    },
-    "linux": {
-      "target": "AppImage"
-    },
-    "mac": {
-      "target": "dmg"
-    }
+  "dependencies": {
+    "firebase": "^10.13.2",
+    "motion": "^11.11.9",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1"
   },
   "devDependencies": {
-    "electron": "^31.0.0",
-    "electron-builder": "^24.13.3"
+    "@types/react": "^18.3.11",
+    "@types/react-dom": "^18.3.0",
+    "@vitejs/plugin-react": "^4.3.2",
+    "autoprefixer": "^10.4.20",
+    "postcss": "^8.4.47",
+    "tailwindcss": "^3.4.13",
+    "typescript": "^5.6.2",
+    "vite": "^5.4.8"
   }
 }

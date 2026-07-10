@@ -1,5 +1,12 @@
 node_modules/
 dist/
-*.log
+dist-ssr/
+*.local
+.env
+.env.*
+!.env.example
 .DS_Store
-entre-colunas-data*.json
+*.log
+
+# TS build info
+tsconfig.tsbuildinfo

@@ -1,0 +1,55 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  color-scheme: light;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  background: #f4f6f9;
+  color: #1a2b3c;
+  font-family: 'Inter', 'Space Grotesk', system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+@layer components {
+  .card {
+    @apply bg-white rounded-xl border border-slate-200 shadow-sm;
+  }
+  .btn-primary {
+    @apply inline-flex items-center gap-2 rounded-lg bg-caixa-blue px-4 py-2 text-sm font-semibold text-white transition hover:bg-caixa-blue-dark disabled:opacity-50;
+  }
+  .btn-orange {
+    @apply inline-flex items-center gap-2 rounded-lg bg-caixa-orange px-4 py-2 text-sm font-semibold text-white transition hover:bg-caixa-orange-dark;
+  }
+  .btn-ghost {
+    @apply inline-flex items-center gap-2 rounded-lg border border-slate-300 px-3 py-2 text-sm font-medium text-slate-600 transition hover:bg-slate-50;
+  }
+  .input {
+    @apply w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none transition focus:border-caixa-blue focus:ring-2 focus:ring-caixa-blue/20;
+  }
+  .label {
+    @apply mb-1 block text-xs font-medium text-slate-500;
+  }
+  .mono {
+    @apply font-mono tabular-nums;
+  }
+}
+
+/* Scrollbar discreta */
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 8px;
+}
