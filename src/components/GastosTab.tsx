@@ -41,7 +41,7 @@ function GastoEditor({
   }
 
   return (
-    <div className="grid grid-cols-2 gap-3 rounded-lg border border-caixa-blue/30 bg-caixa-blue/5 p-4">
+    <div className="grid grid-cols-1 gap-3 rounded-lg border border-caixa-blue/30 bg-caixa-blue/5 p-4 sm:grid-cols-2">
       <div className="col-span-2">
         <label className="label">Descrição</label>
         <input className="input" value={f.descricao || ''} onChange={(e) => setF({ ...f, descricao: e.target.value })} autoFocus />

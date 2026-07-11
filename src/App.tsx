@@ -10,7 +10,7 @@ import { Dashboard } from './components/Dashboard';
 import { PropertyList } from './components/PropertyList';
 import { PropertyDetail } from './components/PropertyDetail';
 import { CalculadoraViabilidade } from './components/CalculadoraViabilidade';
-import { NotificationSettings } from './components/NotificationSettings';
+import { AjustesView } from './components/AjustesView';
 
 export default function App() {
   const [imoveis, setImoveis] = useState<Imovel[]>([]);
@@ -61,24 +61,24 @@ export default function App() {
     { id: 'dashboard', label: 'Dashboard', icone: '📊' },
     { id: 'portfolio', label: 'Portfólio', icone: '🏢' },
     { id: 'viabilidade', label: 'Viabilidade', icone: '🧭' },
-    { id: 'notificacoes', label: 'Notificações', icone: '🔔' },
+    { id: 'notificacoes', label: 'Ajustes', icone: '⚙️' },
   ];
 
   return (
     <div className="min-h-screen">
       <header className="sticky top-0 z-40 border-b-2 border-caixa-orange/70 bg-white/90 backdrop-blur">
-        <div className="mx-auto flex max-w-7xl items-center justify-between px-6 py-3">
+        <div className="mx-auto flex max-w-7xl flex-wrap items-center justify-between gap-y-2 px-4 py-3 sm:px-6">
           <div className="flex items-center gap-3">
             <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-caixa-blue">
               <span className="font-display text-sm font-bold text-white">EC</span>
             </div>
             <div className="leading-tight">
-              <h1 className="font-display text-base font-bold text-caixa-blue">Entre Colunas Leilões</h1>
-              <p className="text-[11px] text-slate-500">Gestão de imóveis arrematados · Caixa</p>
+              <h1 className="font-display text-sm font-bold text-caixa-blue sm:text-base">Entre Colunas Leilões</h1>
+              <p className="hidden text-[11px] text-slate-500 sm:block">Gestão de imóveis arrematados · Caixa</p>
             </div>
           </div>
 
-          <nav className="flex items-center gap-1">
+          <nav className="order-3 -mx-1 flex w-full items-center gap-1 overflow-x-auto px-1 sm:order-none sm:w-auto sm:overflow-visible">
             {abas.map((a) => (
               <button
                 key={a.id}
@@ -86,7 +86,7 @@ export default function App() {
                   setAba(a.id);
                   if (a.id !== 'detalhe') setImovelSelecionado(null);
                 }}
-                className={`relative rounded-lg px-3 py-2 text-sm font-medium transition ${
+                className={`relative shrink-0 whitespace-nowrap rounded-lg px-3 py-2 text-sm font-medium transition ${
                   aba === a.id || (a.id === 'portfolio' && aba === 'detalhe')
                     ? 'text-caixa-blue'
                     : 'text-slate-500 hover:text-slate-800'
@@ -137,7 +137,7 @@ export default function App() {
               />
             )}
             {aba === 'viabilidade' && <CalculadoraViabilidade onAbrirImovel={abrirImovel} />}
-            {aba === 'notificacoes' && <NotificationSettings imoveis={imoveis} />}
+            {aba === 'notificacoes' && <AjustesView imoveis={imoveis} />}
           </motion.div>
         </AnimatePresence>
       </main>

@@ -67,7 +67,8 @@ export function SociosTab({ imovel, resumo }: { imovel: Imovel; resumo: ResumoFi
           Nenhum sócio cadastrado. O investidor é 100% individual.
         </div>
       ) : (
-        <table className="w-full text-sm">
+        <div className="overflow-x-auto">
+        <table className="w-full min-w-[560px] text-sm">
           <thead>
             <tr className="border-b border-slate-100 text-left text-xs uppercase text-slate-400">
               <th className="py-2">Sócio</th>
@@ -104,6 +105,7 @@ export function SociosTab({ imovel, resumo }: { imovel: Imovel; resumo: ResumoFi
             })}
           </tbody>
         </table>
+        </div>
       )}
 
       {/* Adicionar sócio */}

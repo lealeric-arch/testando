@@ -67,7 +67,7 @@ export function PropertyForm({
 
   return (
     <Modal aberto={aberto} onClose={onClose} titulo={e ? 'Editar imóvel' : 'Novo imóvel'} largura="max-w-2xl">
-      <div className="grid grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         <div className="col-span-2">
           <label className="label">Título / Identificação *</label>
           <input className="input" value={form.titulo || ''} onChange={(ev) => set('titulo', ev.target.value)} placeholder="Ex.: Apartamento 302 — Ed. Solar" />

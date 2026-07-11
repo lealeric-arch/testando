@@ -88,7 +88,8 @@ export function ReportView({
 
               {/* Partilha */}
               <h3 className="mb-2 text-sm font-semibold uppercase tracking-wide text-caixa-blue">Partilha de caixa & retornos</h3>
-              <table className="w-full text-sm">
+              <div className="overflow-x-auto">
+              <table className="w-full min-w-[520px] text-sm">
                 <thead>
                   <tr className="border-b border-slate-200 text-left text-xs text-slate-400">
                     <th className="py-1">Participante</th>
@@ -110,6 +111,7 @@ export function ReportView({
                   ))}
                 </tbody>
               </table>
+              </div>
 
               <p className="mt-8 border-t border-slate-100 pt-3 text-[11px] text-slate-400">
                 Documento gerencial de prestação de contas, sem valor fiscal. Entre Colunas Leilões atua de forma

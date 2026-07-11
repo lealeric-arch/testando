@@ -74,6 +74,38 @@ class DataStore {
     this.persistir();
     this.emit();
   }
+
+  // ---- Backup / restauração ----
+  exportarEstado(): string {
+    return JSON.stringify(
+      { app: 'entre-colunas-leiloes', versao: 1, exportadoEm: new Date().toISOString(), ...this.snapshot() },
+      null,
+      2,
+    );
+  }
+
+  // Importa um backup. modo 'substituir' troca tudo; 'mesclar' faz upsert por id.
+  async importarEstado(json: string, modo: 'substituir' | 'mesclar'): Promise<{ imoveis: number; gastos: number }> {
+    const dados = JSON.parse(json);
+    const imoveis: Imovel[] = Array.isArray(dados.imoveis) ? dados.imoveis : [];
+    const gastos: Gasto[] = Array.isArray(dados.gastos) ? dados.gastos : [];
+    if (!imoveis.length && !gastos.length) throw new Error('Arquivo sem imóveis nem gastos.');
+
+    if (modo === 'substituir') {
+      this.imoveis = imoveis;
+      this.gastos = gastos;
+    } else {
+      const mapaI = new Map(this.imoveis.map((i) => [i.id, i]));
+      imoveis.forEach((i) => mapaI.set(i.id, i));
+      const mapaG = new Map(this.gastos.map((g) => [g.id, g]));
+      gastos.forEach((g) => mapaG.set(g.id, g));
+      this.imoveis = Array.from(mapaI.values());
+      this.gastos = Array.from(mapaG.values());
+    }
+    this.persistir();
+    this.emit();
+    return { imoveis: imoveis.length, gastos: gastos.length };
+  }
 }
 
 function readLS<T>(key: string, fallback: T): T {

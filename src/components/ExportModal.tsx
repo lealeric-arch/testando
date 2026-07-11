@@ -49,7 +49,7 @@ export function ExportModal({
 
   return (
     <Modal aberto={aberto} onClose={onClose} titulo="Exportar planilha (.xls)" largura="max-w-xl">
-      <div className="grid grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         <div>
           <label className="label">Escopo</label>
           <select className="input" value={f.escopo} onChange={(e) => set('escopo', e.target.value)}>

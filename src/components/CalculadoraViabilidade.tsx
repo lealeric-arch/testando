@@ -126,7 +126,7 @@ export function CalculadoraViabilidade({ onAbrirImovel }: { onAbrirImovel: (id: 
             <label className="label">Endereço</label>
             <input className="input" value={endereco} onChange={(e) => setEndereco(e.target.value)} />
           </div>
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             {campo('Valor de mercado', valorMercado, setValorMercado)}
             {campo('Margem desejada (%)', margem, setMargem, '%')}
             {campo('Custo de reforma', reforma, setReforma)}
@@ -138,7 +138,7 @@ export function CalculadoraViabilidade({ onAbrirImovel }: { onAbrirImovel: (id: 
             Simular financiamento Caixa (alavancagem)
           </label>
           {usarFin && (
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               {campo('Entrada (%)', entradaPct, setEntradaPct, '%')}
               {campo('Taxa de avaliação CEF', taxaAval, setTaxaAval)}
             </div>

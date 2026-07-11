@@ -11,7 +11,7 @@ import {
 } from '../utils/notifications';
 import { gerarAlertas } from '../utils/alerts';
 
-export function NotificationSettings({ imoveis }: { imoveis: Imovel[] }) {
+export function NotificationSettings({ imoveis, embutido = false }: { imoveis: Imovel[]; embutido?: boolean }) {
   const [permissao, setPermissao] = useState<NotificationPermission | 'unsupported'>('default');
   const emIframe = rodandoEmIframe();
   const suportado = notificacoesSuportadas();
@@ -37,9 +37,11 @@ export function NotificationSettings({ imoveis }: { imoveis: Imovel[] }) {
   }[permissao];
 
   return (
-    <div className="mx-auto max-w-2xl space-y-6">
+    <div className={embutido ? 'space-y-6' : 'mx-auto max-w-2xl space-y-6'}>
       <div>
-        <h2 className="font-display text-2xl font-bold text-slate-800">Notificações</h2>
+        <h2 className={embutido ? 'font-display text-lg font-semibold text-slate-800' : 'font-display text-2xl font-bold text-slate-800'}>
+          🔔 Notificações
+        </h2>
         <p className="text-sm text-slate-500">Alertas nativos no seu sistema operacional ou celular.</p>
       </div>
 
