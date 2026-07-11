@@ -1,0 +1,62 @@
+name: Build desktop installers
+
+# Gera os instaladores desktop (Windows/macOS/Linux), publica um GitHub Release
+# com os arquivos anexados (download direto pelo navegador, sem login) e também
+# guarda cada instalador como artefato da execução.
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - claude/pc-auction-control-259bzg
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      # Sequencial para evitar corrida ao criar o mesmo Release nos 3 jobs.
+      max-parallel: 1
+      matrix:
+        include:
+          - os: windows-latest
+            ebflag: --win
+            artifact: instalador-windows
+            path: release/*.exe
+          - os: macos-latest
+            ebflag: --mac
+            artifact: instalador-macos
+            path: release/*.dmg
+          - os: ubuntu-latest
+            ebflag: --linux
+            artifact: instalador-linux
+            path: release/*.AppImage
+
+    runs-on: ${{ matrix.os }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Instalar dependências
+        run: npm ci
+
+      - name: Gerar instalador e publicar no Release
+        env:
+          # Build sem assinatura de código (evita erros de certificado no CI).
+          CSC_IDENTITY_AUTO_DISCOVERY: false
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: npm run build && npx electron-builder ${{ matrix.ebflag }} --publish always
+
+      - name: Publicar artefato
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.artifact }}
+          path: ${{ matrix.path }}
+          if-no-files-found: error
