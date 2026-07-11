@@ -2,8 +2,8 @@ import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 
 export default defineConfig({
-  // base relativo para o app funcionar via file:// dentro do Electron.
-  base: './',
+  // No GitHub Pages o app fica em /testando/; no Electron/local usa caminho relativo (file://).
+  base: process.env.DEPLOY_TARGET === 'pages' ? '/testando/' : './',
   plugins: [react()],
   server: { port: 5173 },
 });

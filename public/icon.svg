@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <rect width="512" height="512" fill="#005CA9"/>
+  <g fill="none" stroke="#F37021" stroke-width="22" stroke-linejoin="round" stroke-linecap="round">
+    <path d="M136 360 L256 150 L376 360 Z"/>
+  </g>
+  <rect x="120" y="372" width="272" height="26" rx="13" fill="#ffffff"/>
+  <text x="256" y="452" font-family="Segoe UI, Arial, sans-serif" font-size="70" font-weight="700"
+        fill="#ffffff" text-anchor="middle">EC</text>
+</svg>
