@@ -5,6 +5,7 @@ import { PAPEIS_SOCIO } from '../types';
 import type { ResumoFinanceiro } from '../utils/finance';
 import { formatBRL, formatPct, rateioSocios } from '../utils/finance';
 import { novoId, store } from '../utils/storage';
+import { toast } from '../utils/toast';
 import { ConfirmPopover } from './ui';
 
 export function SociosTab({ imovel, resumo }: { imovel: Imovel; resumo: ResumoFinanceiro }) {
@@ -24,8 +25,8 @@ export function SociosTab({ imovel, resumo }: { imovel: Imovel; resumo: ResumoFi
   const limiteAtingido = socios.length >= MAX_SOCIOS;
 
   async function adicionar() {
-    if (limiteAtingido) return alert(`Máximo de ${MAX_SOCIOS} sócios por arrematação.`);
-    if (!nome.trim() || !(Number(pctImovel) > 0 || Number(pctLucro) > 0)) return alert('Informe nome e participação.');
+    if (limiteAtingido) return toast(`Máximo de ${MAX_SOCIOS} sócios por arrematação.`, 'erro');
+    if (!nome.trim() || !(Number(pctImovel) > 0 || Number(pctLucro) > 0)) return toast('Informe nome e participação.', 'erro');
     const pi = Number(pctImovel) || 0;
     const pl = Number(pctLucro) || pi;
     const novo: Socio = {
@@ -129,15 +130,15 @@ export function SociosTab({ imovel, resumo }: { imovel: Imovel; resumo: ResumoFi
           </div>
           <div>
             <label className="label">% Imóvel</label>
-            <input className="input mono" type="number" value={pctImovel} onChange={(e) => setPctImovel(e.target.value)} />
+            <input className="input mono" type="number" min="0" value={pctImovel} onChange={(e) => setPctImovel(e.target.value)} />
           </div>
           <div>
             <label className="label">% Lucro</label>
-            <input className="input mono" type="number" value={pctLucro} onChange={(e) => setPctLucro(e.target.value)} placeholder="= % imóvel" />
+            <input className="input mono" type="number" min="0" value={pctLucro} onChange={(e) => setPctLucro(e.target.value)} placeholder="= % imóvel" />
           </div>
           <div>
             <label className="label">Aporte (R$)</label>
-            <input className="input mono" type="number" value={aporte} onChange={(e) => setAporte(e.target.value)} />
+            <input className="input mono" type="number" min="0" value={aporte} onChange={(e) => setAporte(e.target.value)} />
           </div>
           <div className="sm:col-span-6 flex justify-end">
             <button className="btn-primary" onClick={adicionar}>+ Adicionar sócio</button>

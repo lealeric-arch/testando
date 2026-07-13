@@ -1,5 +1,5 @@
 // Gerenciador de estado global, sincronização de dados e roteamento por abas.
-import { AnimatePresence, motion } from 'motion/react';
+import { motion } from 'motion/react';
 import { useEffect, useMemo, useState } from 'react';
 import type { Aba, Gasto, Imovel } from './types';
 import { store } from './utils/storage';
@@ -11,6 +11,7 @@ import { PropertyList } from './components/PropertyList';
 import { PropertyDetail } from './components/PropertyDetail';
 import { CalculadoraViabilidade } from './components/CalculadoraViabilidade';
 import { AjustesView } from './components/AjustesView';
+import { Toaster } from './components/Toaster';
 
 export default function App() {
   const [imoveis, setImoveis] = useState<Imovel[]>([]);
@@ -106,40 +107,39 @@ export default function App() {
 
           <div className="hidden items-center gap-2 text-xs sm:flex">
             <span className="h-2 w-2 rounded-full bg-emerald-500" />
-            <span className="text-slate-500">Dados salvos neste computador</span>
+            <span className="text-slate-500">Dados salvos neste aparelho</span>
           </div>
         </div>
       </header>
 
       <main className="mx-auto max-w-7xl px-6 py-8">
-        <AnimatePresence mode="wait">
-          <motion.div
-            key={aba + (imovelSelecionado ?? '')}
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -10 }}
-            transition={{ duration: 0.2 }}
-          >
-            {aba === 'dashboard' && (
-              <Dashboard imoveis={imoveis} gastos={gastos} onAbrirImovel={abrirImovel} onIrPortfolio={() => setAba('portfolio')} />
-            )}
-            {aba === 'portfolio' && (
-              <PropertyList imoveis={imoveis} gastos={gastos} onAbrirImovel={abrirImovel} />
-            )}
-            {aba === 'detalhe' && imovelAtual && (
-              <PropertyDetail
-                imovel={imovelAtual}
-                gastos={gastos}
-                onVoltar={() => {
-                  setAba('portfolio');
-                  setImovelSelecionado(null);
-                }}
-              />
-            )}
-            {aba === 'viabilidade' && <CalculadoraViabilidade onAbrirImovel={abrirImovel} />}
-            {aba === 'notificacoes' && <AjustesView imoveis={imoveis} />}
-          </motion.div>
-        </AnimatePresence>
+        {/* Render direto (sem AnimatePresence de rota) para nunca ficar em branco.
+            As animações de entrada acontecem dentro de cada componente. */}
+        <motion.div
+          key={aba + (imovelSelecionado ?? '')}
+          initial={{ opacity: 0, y: 8 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.18 }}
+        >
+          {(aba === 'dashboard' || (aba === 'detalhe' && !imovelAtual)) && (
+            <Dashboard imoveis={imoveis} gastos={gastos} onAbrirImovel={abrirImovel} onIrPortfolio={() => setAba('portfolio')} />
+          )}
+          {aba === 'portfolio' && (
+            <PropertyList imoveis={imoveis} gastos={gastos} onAbrirImovel={abrirImovel} />
+          )}
+          {aba === 'detalhe' && imovelAtual && (
+            <PropertyDetail
+              imovel={imovelAtual}
+              gastos={gastos}
+              onVoltar={() => {
+                setAba('portfolio');
+                setImovelSelecionado(null);
+              }}
+            />
+          )}
+          {aba === 'viabilidade' && <CalculadoraViabilidade onAbrirImovel={abrirImovel} />}
+          {aba === 'notificacoes' && <AjustesView imoveis={imoveis} />}
+        </motion.div>
       </main>
 
       <footer className="mt-8 border-t border-slate-200 bg-white/60 py-6">
@@ -151,6 +151,8 @@ export default function App() {
           <p className="mt-1">© 2026 Entre Colunas Leilões. Licenciado para Eric Leal.</p>
         </div>
       </footer>
+
+      <Toaster />
     </div>
   );
 }

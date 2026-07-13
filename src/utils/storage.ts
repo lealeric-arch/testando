@@ -1,6 +1,7 @@
 // Persistência local (usuário único, sem nuvem/compartilhamento).
 // Todos os dados ficam no localStorage do próprio computador.
 import type { Gasto, Imovel } from '../types';
+import { baixarArquivo } from './download';
 
 const LS_IMOVEIS = 'ec_imoveis';
 const LS_GASTOS = 'ec_gastos';
@@ -12,14 +13,40 @@ export interface EstadoDados {
 
 type Listener = (estado: EstadoDados) => void;
 
+// Ponte de persistência do Electron (arquivo em disco). Ausente na web.
+interface DesktopBridge {
+  carregar: () => Promise<EstadoDados>;
+  salvar: (dados: EstadoDados) => Promise<{ ok: boolean }>;
+  salvarArquivo: (opts: { nome: string; conteudo: string }) => Promise<{ ok: boolean; caminho?: string }>;
+}
+function desktop(): DesktopBridge | null {
+  return (typeof window !== 'undefined' && (window as unknown as { ecDesktop?: DesktopBridge }).ecDesktop) || null;
+}
+export function isDesktop(): boolean {
+  return desktop() != null;
+}
+
 class DataStore {
   private imoveis: Imovel[] = [];
   private gastos: Gasto[] = [];
   private listeners = new Set<Listener>();
 
   async init(): Promise<void> {
-    this.imoveis = readLS<Imovel[]>(LS_IMOVEIS, []);
-    this.gastos = readLS<Gasto[]>(LS_GASTOS, []);
+    const d = desktop();
+    if (d) {
+      // Electron: persistência real em arquivo (localStorage em file:// não é confiável).
+      try {
+        const dados = await d.carregar();
+        this.imoveis = Array.isArray(dados?.imoveis) ? dados.imoveis : [];
+        this.gastos = Array.isArray(dados?.gastos) ? dados.gastos : [];
+      } catch {
+        this.imoveis = [];
+        this.gastos = [];
+      }
+    } else {
+      this.imoveis = readLS<Imovel[]>(LS_IMOVEIS, []);
+      this.gastos = readLS<Gasto[]>(LS_GASTOS, []);
+    }
     this.emit();
   }
 
@@ -39,8 +66,27 @@ class DataStore {
   }
 
   private persistir() {
-    writeLS(LS_IMOVEIS, this.imoveis);
-    writeLS(LS_GASTOS, this.gastos);
+    const d = desktop();
+    if (d) {
+      // Grava no arquivo (fire-and-forget); erros não bloqueiam a UI.
+      d.salvar({ imoveis: this.imoveis, gastos: this.gastos }).catch(() => {});
+    } else {
+      writeLS(LS_IMOVEIS, this.imoveis);
+      writeLS(LS_GASTOS, this.gastos);
+    }
+  }
+
+  // Salva um arquivo pelo diálogo nativo (Electron) ou download (web).
+  // Retorna false quando o usuário cancela no desktop.
+  async salvarArquivoTexto(nome: string, conteudo: string): Promise<boolean> {
+    const d = desktop();
+    if (d) {
+      const r = await d.salvarArquivo({ nome, conteudo });
+      return !!r.ok;
+    }
+    // Web: download via blob (não há como detectar cancelamento).
+    baixarArquivo(nome, conteudo, 'application/octet-stream');
+    return true;
   }
 
   // ---- Mutações de imóveis ----

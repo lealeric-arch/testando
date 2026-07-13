@@ -4,6 +4,7 @@ import type { Imovel } from '../types';
 import { IMOVEL_STATUS, ETAPAS_DESOCUPACAO, MODALIDADES } from '../types';
 import { Modal } from './ui';
 import { novoId, store } from '../utils/storage';
+import { toast } from '../utils/toast';
 
 function nowISO() {
   return new Date().toISOString();
@@ -33,7 +34,18 @@ export function PropertyForm({
   }
 
   async function salvar() {
-    if (!form.titulo || !form.titulo.trim()) return alert('Informe o título do imóvel.');
+    if (!form.titulo || !form.titulo.trim()) return toast('Informe o título do imóvel.', 'erro');
+    // Valores monetários não podem ser negativos.
+    const negativos = [
+      ['Valor de arrematação', form.valorArrematacao],
+      ['Valor de avaliação', form.valorAvaliacao],
+      ['Valor de venda', form.valorVenda],
+    ].find(([, v]) => Number(v) < 0);
+    if (negativos) return toast(`${negativos[0]} não pode ser negativo.`, 'erro');
+    // Data de venda não pode ser anterior à arrematação.
+    if (form.dataArrematacao && form.dataVenda && form.dataVenda < form.dataArrematacao) {
+      return toast('A data de venda não pode ser anterior à data de arrematação.', 'erro');
+    }
     const imovel: Imovel = {
       id: e?.id ?? novoId('imv'),
       titulo: form.titulo!.trim(),
@@ -127,11 +139,11 @@ export function PropertyForm({
         </div>
         <div>
           <label className="label">Valor de arrematação (R$)</label>
-          <input className="input mono" type="number" value={form.valorArrematacao ?? ''} onChange={(ev) => set('valorArrematacao', Number(ev.target.value))} />
+          <input className="input mono" type="number" min="0" value={form.valorArrematacao ?? ''} onChange={(ev) => set('valorArrematacao', Number(ev.target.value))} />
         </div>
         <div>
           <label className="label">Valor de avaliação (R$)</label>
-          <input className="input mono" type="number" value={form.valorAvaliacao ?? ''} onChange={(ev) => set('valorAvaliacao', Number(ev.target.value))} />
+          <input className="input mono" type="number" min="0" value={form.valorAvaliacao ?? ''} onChange={(ev) => set('valorAvaliacao', Number(ev.target.value))} />
         </div>
         <div>
           <label className="label">Data de arrematação</label>
@@ -143,15 +155,15 @@ export function PropertyForm({
         </div>
         <div>
           <label className="label">Valor de venda (R$)</label>
-          <input className="input mono" type="number" value={form.valorVenda ?? ''} onChange={(ev) => set('valorVenda', Number(ev.target.value))} />
+          <input className="input mono" type="number" min="0" value={form.valorVenda ?? ''} onChange={(ev) => set('valorVenda', Number(ev.target.value))} />
         </div>
         <div>
           <label className="label">Alíquota de IR sobre o lucro (%)</label>
-          <input className="input mono" type="number" value={form.aliquotaIR ?? 15} onChange={(ev) => set('aliquotaIR', Number(ev.target.value))} />
+          <input className="input mono" type="number" min="0" value={form.aliquotaIR ?? 15} onChange={(ev) => set('aliquotaIR', Number(ev.target.value))} />
         </div>
         <div>
           <label className="label">Comissão do corretor na venda (%)</label>
-          <input className="input mono" type="number" value={form.comissaoCorretorPct ?? 5} onChange={(ev) => set('comissaoCorretorPct', Number(ev.target.value))} />
+          <input className="input mono" type="number" min="0" value={form.comissaoCorretorPct ?? 5} onChange={(ev) => set('comissaoCorretorPct', Number(ev.target.value))} />
         </div>
         <div className="flex items-end">
           <label className="flex items-center gap-2 text-sm text-slate-600">

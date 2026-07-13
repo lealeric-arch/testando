@@ -4,6 +4,7 @@ import { useState } from 'react';
 import type { Gasto, GastoCategoria, Imovel, Socio } from '../types';
 import { GASTOS_AQUISICAO, GASTOS_VENDA } from '../types';
 import { faseDoGasto, formatBRL, gastoEhDedutivel } from '../utils/finance';
+import { toast } from '../utils/toast';
 import { novoId, store } from '../utils/storage';
 import { ConfirmPopover } from './ui';
 
@@ -23,8 +24,8 @@ function GastoEditor({
   );
 
   async function salvar() {
-    if (!f.descricao || !f.descricao.trim()) return alert('Informe a descrição.');
-    if (!(Number(f.valor) > 0)) return alert('Informe um valor válido.');
+    if (!f.descricao || !f.descricao.trim()) return toast('Informe a descrição.', 'erro');
+    if (!(Number(f.valor) > 0)) return toast('Informe um valor válido (maior que zero).', 'erro');
     const novo: Gasto = {
       id: gasto?.id ?? novoId('gst'),
       imovelId,
@@ -63,7 +64,7 @@ function GastoEditor({
       </div>
       <div>
         <label className="label">Valor (R$)</label>
-        <input className="input mono" type="number" value={f.valor ?? ''} onChange={(e) => setF({ ...f, valor: Number(e.target.value) })} />
+        <input className="input mono" type="number" min="0" value={f.valor ?? ''} onChange={(e) => setF({ ...f, valor: Math.max(0, Number(e.target.value)) })} />
       </div>
       <div>
         <label className="label">Data</label>

@@ -5,6 +5,7 @@ import { useMemo, useState } from 'react';
 import type { Gasto, Imovel } from '../types';
 import { calcularLanceMaximo, formatBRL, formatPct, type ViabilidadeOpts } from '../utils/finance';
 import { novoId, store } from '../utils/storage';
+import { toast } from '../utils/toast';
 
 type EstadoItem = 'OK' | 'PENDENTE' | 'RISCO';
 
@@ -49,6 +50,7 @@ export function CalculadoraViabilidade({ onAbrirImovel }: { onAbrirImovel: (id: 
     [valorMercado, margem, reforma, outros, usarFin, entradaPct, taxaAval],
   );
 
+  const inviavel = valorMercado <= 0 || r.lanceMaximo <= 0;
   const temRisco = checklist.some((c) => c.estado === 'RISCO');
   const recomendacao = useMemo(() => {
     if (valorMercado <= 0) return null;
@@ -69,8 +71,9 @@ export function CalculadoraViabilidade({ onAbrirImovel }: { onAbrirImovel: (id: 
   }
 
   async function criarImovel() {
-    if (!titulo.trim()) return alert('Informe um título para criar o imóvel.');
-    if (r.lanceMaximo <= 0) return alert('Lance máximo inviável — ajuste a simulação.');
+    if (!titulo.trim()) return toast('Informe um título para criar o imóvel.', 'erro');
+    if (valorMercado < 0 || reforma < 0 || outros < 0) return toast('Os valores não podem ser negativos.', 'erro');
+    if (r.lanceMaximo <= 0) return toast('Lance máximo inviável — ajuste a simulação.', 'erro');
     const now = new Date().toISOString();
     const id = novoId('imv');
     const imovel: Imovel = {
@@ -102,7 +105,7 @@ export function CalculadoraViabilidade({ onAbrirImovel }: { onAbrirImovel: (id: 
       <label className="label">{label}</label>
       <div className="flex items-center gap-2">
         <span className="text-xs text-slate-400">{sufixo}</span>
-        <input className="input mono" type="number" value={valor || ''} onChange={(e) => set(Number(e.target.value))} />
+        <input className="input mono" type="number" min="0" value={valor || ''} onChange={(e) => set(Math.max(0, Number(e.target.value)))} />
       </div>
     </div>
   );
@@ -149,13 +152,13 @@ export function CalculadoraViabilidade({ onAbrirImovel }: { onAbrirImovel: (id: 
         <div className="space-y-4">
           <div className="card p-6">
             <p className="text-xs uppercase tracking-wide text-slate-400">Lance máximo recomendado</p>
-            <p className="mono font-display text-3xl font-bold text-caixa-blue">{formatBRL(r.lanceMaximo)}</p>
-            <p className="mt-1 text-xs text-slate-400">{formatPct(r.percentualDoMercado)} do valor de mercado</p>
+            <p className="mono font-display text-3xl font-bold text-caixa-blue">{inviavel ? '—' : formatBRL(r.lanceMaximo)}</p>
+            <p className="mt-1 text-xs text-slate-400">{inviavel ? 'Cenário inviável' : `${formatPct(r.percentualDoMercado)} do valor de mercado`}</p>
             <div className="mt-4 grid grid-cols-2 gap-3 border-t border-slate-100 pt-4 text-sm">
-              <div><p className="text-[11px] text-slate-400">Lucro desejado</p><p className="mono font-semibold text-emerald-600">{formatBRL(r.lucroDesejado)}</p></div>
-              <div><p className="text-[11px] text-slate-400">Custo total (à vista)</p><p className="mono font-semibold text-slate-700">{formatBRL(r.custoTotalEstimado)}</p></div>
-              <div><p className="text-[11px] text-slate-400">ROI à vista</p><p className="mono font-semibold text-slate-700">{formatPct(r.roiSimples)}</p></div>
-              {usarFin && <div><p className="text-[11px] text-slate-400">ROI alavancado</p><p className="mono font-semibold text-caixa-orange-dark">{formatPct(r.roiAlavancado)}</p></div>}
+              <div><p className="text-[11px] text-slate-400">Lucro desejado</p><p className="mono font-semibold text-emerald-600">{inviavel ? '—' : formatBRL(r.lucroDesejado)}</p></div>
+              <div><p className="text-[11px] text-slate-400">Custo total (à vista)</p><p className="mono font-semibold text-slate-700">{inviavel ? '—' : formatBRL(r.custoTotalEstimado)}</p></div>
+              <div><p className="text-[11px] text-slate-400">ROI à vista</p><p className="mono font-semibold text-slate-700">{inviavel ? '—' : formatPct(r.roiSimples)}</p></div>
+              {usarFin && <div><p className="text-[11px] text-slate-400">ROI alavancado</p><p className="mono font-semibold text-caixa-orange-dark">{inviavel ? '—' : formatPct(r.roiAlavancado)}</p></div>}
             </div>
             {usarFin && (
               <div className="mt-3 grid grid-cols-3 gap-2 rounded-lg bg-slate-50 p-3 text-xs">

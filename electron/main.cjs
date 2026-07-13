@@ -1,6 +1,50 @@
-// Processo principal do Electron: cria a janela e carrega a aplicação.
-const { app, BrowserWindow, shell } = require('electron');
+// Processo principal do Electron: cria a janela, carrega o app e persiste dados em arquivo.
+const { app, BrowserWindow, shell, ipcMain, dialog } = require('electron');
 const path = require('path');
+const fs = require('fs');
+
+function arquivoDados() {
+  return path.join(app.getPath('userData'), 'entre-colunas-dados.json');
+}
+
+// ---- Persistência em arquivo (robusta, ao contrário do localStorage em file://) ----
+ipcMain.handle('store:load', () => {
+  try {
+    const p = arquivoDados();
+    if (!fs.existsSync(p)) return { imoveis: [], gastos: [] };
+    const dados = JSON.parse(fs.readFileSync(p, 'utf8'));
+    return { imoveis: Array.isArray(dados.imoveis) ? dados.imoveis : [], gastos: Array.isArray(dados.gastos) ? dados.gastos : [] };
+  } catch {
+    return { imoveis: [], gastos: [] };
+  }
+});
+
+ipcMain.handle('store:save', (_evt, dados) => {
+  try {
+    const p = arquivoDados();
+    const tmp = p + '.tmp';
+    fs.writeFileSync(tmp, JSON.stringify(dados ?? { imoveis: [], gastos: [] }, null, 2), 'utf8');
+    fs.renameSync(tmp, p); // gravação atômica
+    return { ok: true };
+  } catch (err) {
+    return { ok: false, erro: String(err) };
+  }
+});
+
+// ---- Diálogo nativo de salvar arquivo (retorna cancelado corretamente) ----
+ipcMain.handle('file:save', async (_evt, opts) => {
+  const win = BrowserWindow.getFocusedWindow();
+  const { canceled, filePath } = await dialog.showSaveDialog(win, {
+    defaultPath: (opts && opts.nome) || 'arquivo.txt',
+  });
+  if (canceled || !filePath) return { ok: false };
+  try {
+    fs.writeFileSync(filePath, (opts && opts.conteudo) || '', 'utf8');
+    return { ok: true, caminho: filePath };
+  } catch (err) {
+    return { ok: false, erro: String(err) };
+  }
+});
 
 function createWindow() {
   const win = new BrowserWindow({
@@ -12,6 +56,7 @@ function createWindow() {
     backgroundColor: '#f4f6f9',
     autoHideMenuBar: true,
     webPreferences: {
+      preload: path.join(__dirname, 'preload.cjs'),
       contextIsolation: true,
       nodeIntegration: false,
     },
@@ -19,7 +64,6 @@ function createWindow() {
 
   win.setMenuBarVisibility(false);
 
-  // Em desenvolvimento carrega o servidor do Vite; em produção, o build local.
   const devUrl = process.env.VITE_DEV_SERVER_URL;
   if (devUrl) {
     win.loadURL(devUrl);
@@ -28,7 +72,6 @@ function createWindow() {
     win.loadFile(path.join(__dirname, '..', 'dist', 'index.html'));
   }
 
-  // Links externos abrem no navegador padrão, não dentro do app.
   win.webContents.setWindowOpenHandler(({ url }) => {
     shell.openExternal(url);
     return { action: 'deny' };

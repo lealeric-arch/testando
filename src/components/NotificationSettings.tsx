@@ -10,6 +10,7 @@ import {
   limparHistoricoNotificacoes,
 } from '../utils/notifications';
 import { gerarAlertas } from '../utils/alerts';
+import { toast } from '../utils/toast';
 
 export function NotificationSettings({ imoveis, embutido = false }: { imoveis: Imovel[]; embutido?: boolean }) {
   const [permissao, setPermissao] = useState<NotificationPermission | 'unsupported'>('default');
@@ -101,7 +102,7 @@ export function NotificationSettings({ imoveis, embutido = false }: { imoveis: I
           className="btn-ghost mt-4"
           onClick={() => {
             limparHistoricoNotificacoes();
-            alert('Histórico de notificações limpo. Os alertas persistentes poderão ser reenviados.');
+            toast('Histórico de notificações limpo.', 'sucesso');
           }}
         >
           Limpar histórico de notificações

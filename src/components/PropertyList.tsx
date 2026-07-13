@@ -103,7 +103,11 @@ export function PropertyList({
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div>
           <h2 className="font-display text-2xl font-bold text-slate-800">Portfólio</h2>
-          <p className="text-sm text-slate-500">{imoveis.length} imóvel(is) na carteira.</p>
+          <p className="text-sm text-slate-500">
+            {busca
+              ? `${filtrados.length} de ${imoveis.length} imóvel(is)`
+              : `${imoveis.length} imóvel(is) na carteira.`}
+          </p>
         </div>
         <div className="flex items-center gap-3">
           <input

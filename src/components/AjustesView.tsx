@@ -2,7 +2,7 @@
 import { useRef, useState } from 'react';
 import type { Imovel } from '../types';
 import { store } from '../utils/storage';
-import { baixarArquivo, nomeArquivo } from '../utils/download';
+import { nomeArquivo } from '../utils/download';
 import { NotificationSettings } from './NotificationSettings';
 
 export function AjustesView({ imoveis }: { imoveis: Imovel[] }) {
@@ -10,10 +10,10 @@ export function AjustesView({ imoveis }: { imoveis: Imovel[] }) {
   const [modo, setModo] = useState<'substituir' | 'mesclar'>('mesclar');
   const [msg, setMsg] = useState<string | null>(null);
 
-  function exportar() {
+  async function exportar() {
     const data = new Date().toISOString().slice(0, 10);
-    baixarArquivo(nomeArquivo(`backup-entre-colunas-${data}`, 'json'), store.exportarEstado(), 'application/json');
-    setMsg('Backup exportado. Guarde o arquivo em local seguro (ou envie para o outro aparelho).');
+    const ok = await store.salvarArquivoTexto(nomeArquivo(`backup-entre-colunas-${data}`, 'json'), store.exportarEstado());
+    setMsg(ok ? 'Backup salvo com sucesso. Guarde-o em local seguro (ou envie para o outro aparelho).' : 'Exportação cancelada — nenhum arquivo foi salvo.');
   }
 
   async function aoEscolherArquivo(e: React.ChangeEvent<HTMLInputElement>) {
