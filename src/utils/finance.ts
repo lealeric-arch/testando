@@ -328,3 +328,28 @@ export function calcularPartilhaSocios(imovel: Imovel, gastos: Gasto[]): Partici
 
   return [voce, ...listaSocios];
 }
+
+// Consolida a partilha de todos os imóveis vendidos por participante (agrupado por nome).
+export interface PartilhaConsolidada {
+  nome: string;
+  reembolso: number;
+  retornoCapital: number;
+  lucro: number;
+  total: number;
+}
+
+export function partilhaConsolidada(imoveis: Imovel[], gastos: Gasto[]): PartilhaConsolidada[] {
+  const mapa = new Map<string, PartilhaConsolidada>();
+  for (const im of imoveis) {
+    if (!(im.status === 'Vendido' && (Number(im.valorVenda) || 0) > 0)) continue;
+    for (const p of calcularPartilhaSocios(im, gastos)) {
+      const cur = mapa.get(p.nome) || { nome: p.nome, reembolso: 0, retornoCapital: 0, lucro: 0, total: 0 };
+      cur.reembolso = round2(cur.reembolso + p.reembolsoGastos);
+      cur.retornoCapital = round2(cur.retornoCapital + p.retornoCapital);
+      cur.lucro = round2(cur.lucro + p.lucro);
+      cur.total = round2(cur.total + p.totalReceber);
+      mapa.set(p.nome, cur);
+    }
+  }
+  return Array.from(mapa.values()).sort((a, b) => b.total - a.total);
+}

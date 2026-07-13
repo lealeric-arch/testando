@@ -2,7 +2,7 @@
 import { motion } from 'motion/react';
 import { useState } from 'react';
 import type { Gasto, Imovel } from '../types';
-import { formatBRL, formatPct, resumoPortfolio } from '../utils/finance';
+import { formatBRL, formatPct, partilhaConsolidada, resumoPortfolio } from '../utils/finance';
 import { gerarAlertas } from '../utils/alerts';
 import { ExportModal } from './ExportModal';
 
@@ -39,6 +39,8 @@ export function Dashboard({
 }) {
   const r = resumoPortfolio(imoveis, gastos);
   const alertas = gerarAlertas(imoveis);
+  const partilha = partilhaConsolidada(imoveis, gastos);
+  const temSocios = partilha.length > 1; // além de "Você"
   const [exportAberto, setExportAberto] = useState(false);
 
   return (
@@ -116,6 +118,41 @@ export function Dashboard({
           </div>
         )}
       </div>
+
+      {/* Retorno consolidado por sócio (carteira) */}
+      {temSocios && (
+        <div className="card p-6">
+          <div className="mb-4 flex items-center gap-2">
+            <span className="text-lg">🤝</span>
+            <h3 className="font-display text-lg font-semibold text-slate-800">Retorno por sócio (carteira)</h3>
+          </div>
+          <div className="overflow-x-auto">
+            <table className="w-full min-w-[520px] text-sm">
+              <thead>
+                <tr className="border-b border-slate-100 text-left text-xs uppercase text-slate-400">
+                  <th className="py-2">Participante</th>
+                  <th className="py-2 text-right">Reembolso</th>
+                  <th className="py-2 text-right">Retorno capital</th>
+                  <th className="py-2 text-right">Lucro</th>
+                  <th className="py-2 text-right">Total a receber</th>
+                </tr>
+              </thead>
+              <tbody>
+                {partilha.map((p) => (
+                  <tr key={p.nome} className="border-b border-slate-50">
+                    <td className="py-2.5 font-medium text-slate-700">{p.nome}</td>
+                    <td className="mono py-2.5 text-right text-slate-500">{formatBRL(p.reembolso)}</td>
+                    <td className="mono py-2.5 text-right text-slate-500">{formatBRL(p.retornoCapital)}</td>
+                    <td className="mono py-2.5 text-right text-emerald-600">{formatBRL(p.lucro)}</td>
+                    <td className="mono py-2.5 text-right font-bold text-caixa-blue">{formatBRL(p.total)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          <p className="mt-2 text-xs text-slate-400">Somatório de todos os imóveis vendidos, agrupado por participante.</p>
+        </div>
+      )}
     </div>
   );
 }
