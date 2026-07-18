@@ -56,6 +56,16 @@ export function ReportView({
               </div>
 
               <div className="mb-6">
+                {(() => { const gal = imovel.fotos && imovel.fotos.length ? imovel.fotos : (imovel.fotoUrl ? [imovel.fotoUrl] : []); return gal.length ? (
+                  <div className="mb-4">
+                    <img src={gal[0]} alt={imovel.titulo} className="h-44 w-full rounded-lg object-cover" />
+                    {gal.length > 1 && (
+                      <div className="mt-2 grid grid-cols-6 gap-1.5">
+                        {gal.slice(1, 7).map((f, i2) => (<img key={i2} src={f} className="h-14 w-full rounded object-cover" />))}
+                      </div>
+                    )}
+                  </div>
+                ) : null; })()}
                 <h2 className="font-display text-lg font-semibold text-slate-800">{imovel.titulo}</h2>
                 <p className="text-sm text-slate-500">
                   {imovel.endereco}{imovel.cidade ? ` — ${imovel.cidade}/${imovel.uf || ''}` : ''}

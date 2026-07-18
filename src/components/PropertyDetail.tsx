@@ -28,6 +28,9 @@ export function PropertyDetail({
   onVoltar: () => void;
 }) {
   const [sub, setSub] = useState<SubAba>('gastos');
+  const [fotoAtiva, setFotoAtiva] = useState<string | null>(null);
+  const [lightbox, setLightbox] = useState(false);
+  const galeria = imovel.fotos && imovel.fotos.length ? imovel.fotos : (imovel.fotoUrl ? [imovel.fotoUrl] : []);
   const [editando, setEditando] = useState(false);
   const [relatorioAberto, setRelatorioAberto] = useState(false);
 
@@ -66,14 +69,28 @@ export function PropertyDetail({
       {/* Cabeçalho do imóvel */}
       <div className="card overflow-hidden">
         <div className="flex flex-col gap-4 p-6 sm:flex-row">
-          <div className="h-40 w-full shrink-0 overflow-hidden rounded-lg bg-slate-100 sm:w-64">
-            <Thumb src={obterFotoImovel(imovel.id + (imovel.endereco || ''), imovel.fotoUrl)} alt={imovel.titulo} className="h-full w-full object-cover" />
+          <div className="w-full shrink-0 sm:w-64">
+            <div className="h-40 w-full cursor-zoom-in overflow-hidden rounded-lg bg-slate-100" onClick={() => galeria.length && setLightbox(true)} title="Ampliar">
+              <Thumb src={fotoAtiva || obterFotoImovel(imovel.id + (imovel.endereco || ''), imovel.fotoUrl)} alt={imovel.titulo} className="h-full w-full object-cover" />
+            </div>
+            {galeria.length > 1 && (
+              <div className="mt-2 flex gap-1.5 overflow-x-auto pb-1">
+                {galeria.map((f, i2) => (
+                  <img key={i2} src={f} onClick={() => setFotoAtiva(f)} className={"h-12 w-16 shrink-0 cursor-pointer rounded border-2 object-cover " + ((fotoAtiva || galeria[0]) === f ? "border-caixa-orange" : "border-transparent opacity-80 hover:opacity-100")} />
+                ))}
+              </div>
+            )}
+            {lightbox && galeria.length > 0 && (
+              <div className="fixed inset-0 z-[80] flex cursor-zoom-out items-center justify-center bg-black/85 p-6" onClick={() => setLightbox(false)}>
+                <img src={fotoAtiva || galeria[0]} className="max-h-full max-w-full rounded-lg object-contain" />
+              </div>
+            )}
           </div>
 
           <div className="flex-1">
             <div className="flex items-start justify-between">
               <div>
-                <h2 className="font-display text-xl font-bold text-slate-800">{imovel.titulo}</h2>
+                <h2 className="font-display text-xl font-bold text-slate-800">{imovel.titulo}{(imovel.endereco || imovel.cidade) && (<a href={"https://www.google.com/maps/search/?api=1&query=" + encodeURIComponent([imovel.endereco, imovel.cidade, imovel.uf].filter(Boolean).join(", "))} target="_blank" rel="noreferrer" title="Abrir no Google Maps" className="ml-2 inline-block align-middle text-base">{"\ud83d\udccd"}</a>)}</h2>
                 <p className="text-sm text-slate-500">
                   {imovel.endereco}
                   {imovel.cidade ? ` — ${imovel.cidade}/${imovel.uf}` : ''}

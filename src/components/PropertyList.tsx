@@ -21,6 +21,15 @@ function PropertyCard({
   index: number;
 }) {
   const r = resumoFinanceiro(imovel, gastos);
+  const trocarFoto = (e: any) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (file.size > 3 * 1024 * 1024) { alert("Imagem muito grande (max 3MB). Escolha uma menor."); e.target.value = ""; return; }
+    const reader = new FileReader();
+    reader.onload = () => { store.salvarImovel({ ...imovel, fotoUrl: reader.result as string, updatedAt: new Date().toISOString() }); };
+    reader.readAsDataURL(file);
+    e.target.value = "";
+  };
   return (
     <motion.div
       layout
@@ -35,7 +44,11 @@ function PropertyCard({
         <div className="absolute left-3 top-3">
           <StatusBadge status={imovel.status} />
         </div>
-        <div className="absolute right-3 top-3" onClick={(e) => e.stopPropagation()}>
+        <div className="absolute right-3 top-3 flex items-center gap-1.5" onClick={(e) => e.stopPropagation()}>
+          <label className="flex h-8 w-8 cursor-pointer items-center justify-center rounded-lg bg-white/90 text-slate-700 shadow-sm hover:bg-white" title="Trocar foto do imovel">
+            <input type="file" accept="image/*" className="hidden" onChange={trocarFoto} />
+            <span>{"📷"}</span>
+          </label>
           <ConfirmPopover
             mensagem={`Excluir "${imovel.titulo}" e todos os gastos vinculados?`}
             onConfirm={() => store.excluirImovel(imovel.id)}
@@ -58,13 +71,14 @@ function PropertyCard({
         <p className="mt-0.5 text-xs text-slate-500">
           {imovel.cidade ? `${imovel.cidade}/${imovel.uf}` : 'Sem localização'}
           {imovel.codigoCaixa && <span className="mono ml-2 text-slate-400">#{imovel.codigoCaixa}</span>}
+          {(imovel.endereco || imovel.cidade) && (<a href={"https://www.google.com/maps/search/?api=1&query=" + encodeURIComponent([imovel.endereco, imovel.cidade, imovel.uf].filter(Boolean).join(", "))} target="_blank" rel="noreferrer" title="Abrir no Google Maps" onClick={(e2) => e2.stopPropagation()} className="ml-2">{"\ud83d\udccd"}</a>)}
         </p>
 
         <div className="mt-3">
           <EtapaBadge etapa={imovel.etapaDesocupacao} />
         </div>
 
-        <div className="mt-4 grid grid-cols-2 gap-2 border-t border-slate-100 pt-3 text-sm">
+        <div className="mt-4 grid grid-cols-3 gap-2 border-t border-slate-100 pt-3 text-sm">
           <div>
             <p className="text-[11px] text-slate-400">Arrematação</p>
             <p className="mono font-semibold text-slate-700">{formatBRL(r.valorArrematacao)}</p>
@@ -72,6 +86,10 @@ function PropertyCard({
           <div>
             <p className="text-[11px] text-slate-400">Custo total</p>
             <p className="mono font-semibold text-caixa-blue">{formatBRL(r.custoTotal)}</p>
+          </div>
+          <div>
+            <p className="text-[11px] text-slate-400">Venda</p>
+            <p className="mono font-semibold text-caixa-orange">{imovel.valorVenda ? formatBRL(imovel.valorVenda) : "—"}</p>
           </div>
         </div>
       </div>

@@ -161,7 +161,8 @@ export interface Imovel {
   cidade?: string;
   uf?: string;
   comprador?: string; // comprador na revenda
-  fotoUrl?: string;
+  fotoUrl?: string; // foto principal (= fotos[0])
+  fotos?: string[]; // galeria completa
   status: ImovelStatus;
   etapaDesocupacao: EtapaDesocupacao;
   valorArrematacao: number;

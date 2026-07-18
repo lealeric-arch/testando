@@ -4,6 +4,8 @@ import type { Imovel } from '../types';
 import { IMOVEL_STATUS, ETAPAS_DESOCUPACAO, MODALIDADES } from '../types';
 import { Modal } from './ui';
 import { novoId, store } from '../utils/storage';
+import { formatBRL } from '../utils/finance';
+import { comprimirImagem } from '../utils/fotos';
 import { toast } from '../utils/toast';
 
 function nowISO() {
@@ -22,7 +24,7 @@ export function PropertyForm({
   const e = imovelExistente;
   const estadoInicial = (): Partial<Imovel> =>
     e
-      ? { ...e }
+      ? { ...e, fotos: e.fotos && e.fotos.length ? e.fotos : (e.fotoUrl ? [e.fotoUrl] : []) }
       : { status: 'Arrematado', etapaDesocupacao: 'Não iniciada', imovelResidencial: true, socios: [] };
 
   const [form, setForm] = useState<Partial<Imovel>>(estadoInicial);
@@ -59,7 +61,8 @@ export function PropertyForm({
       endereco: form.endereco || '',
       cidade: form.cidade || '',
       uf: form.uf || '',
-      fotoUrl: form.fotoUrl || '',
+      fotoUrl: (form.fotos && form.fotos[0]) || '',
+      fotos: form.fotos || [],
       status: form.status || 'Arrematado',
       etapaDesocupacao: form.etapaDesocupacao || 'Não iniciada',
       modalidade: form.modalidade,
@@ -122,9 +125,32 @@ export function PropertyForm({
           <label className="label">Comprador (na revenda)</label>
           <input className="input" value={form.comprador || ''} onChange={(ev) => set('comprador', ev.target.value)} placeholder="Nome do comprador" />
         </div>
+        {Number(form.valorAvaliacao) > 0 && (
+          <div className="col-span-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
+            <b>Provisao sugerida (15% da avaliacao): {formatBRL(Number(form.valorAvaliacao) * 0.15)}</b> - estimativa para condominio em atraso e tributos do imovel arrematado. Lance como gasto ao confirmar os valores reais.
+          </div>
+        )}
         <div className="col-span-2">
-          <label className="label">URL da foto</label>
-          <input className="input" value={form.fotoUrl || ''} onChange={(ev) => set('fotoUrl', ev.target.value)} placeholder="https://..." />
+          <label className="label">Fotos do imovel</label>
+          <div className="flex flex-wrap gap-2">
+            {(form.fotos || []).map((f, idx) => (
+              <div key={idx} className="relative h-20 w-28 overflow-hidden rounded-lg border border-slate-200">
+                <img src={f} className="h-full w-full object-cover" />
+                {idx === 0 ? (
+                  <span className="absolute left-1 top-1 rounded bg-caixa-orange px-1.5 py-0.5 text-[9px] font-bold text-white">PRINCIPAL</span>
+                ) : (
+                  <button type="button" title="Tornar principal" onClick={() => { const arr = [...(form.fotos || [])]; const [x] = arr.splice(idx, 1); arr.unshift(x); setForm((fm) => ({ ...fm, fotos: arr, fotoUrl: arr[0] })); }} className="absolute left-1 top-1 rounded bg-black/60 px-1.5 py-0.5 text-[10px] text-white hover:bg-black/80">{"\u2605"}</button>
+                )}
+                <button type="button" title="Remover" onClick={() => { const arr = (form.fotos || []).filter((_, i2) => i2 !== idx); setForm((fm) => ({ ...fm, fotos: arr, fotoUrl: arr[0] || '' })); }} className="absolute right-1 top-1 rounded bg-black/60 px-1.5 py-0.5 text-[10px] text-white hover:bg-red-600">{"\u2715"}</button>
+              </div>
+            ))}
+            <label className="flex h-20 w-28 cursor-pointer flex-col items-center justify-center gap-1 rounded-lg border-2 border-dashed border-slate-300 text-slate-400 hover:border-caixa-blue hover:text-caixa-blue">
+              <span className="text-xl">{"\ud83d\udcf7"}</span>
+              <span className="text-[10px] font-semibold">Adicionar</span>
+              <input type="file" accept="image/*" multiple className="hidden" onChange={async (ev) => { const files = Array.from(ev.target.files || []); if (!files.length) return; const novas: string[] = []; for (const f of files) { try { novas.push(await comprimirImagem(f)); } catch {} } setForm((fm) => { const arr = [...(fm.fotos || []), ...novas]; return { ...fm, fotos: arr, fotoUrl: arr[0] || '' }; }); ev.target.value = ''; }} />
+            </label>
+          </div>
+          <p className="mt-1 text-[11px] text-slate-400">A primeira foto e a principal. Use {"\u2605"} para tornar principal e {"\u2715"} para remover. Voce pode selecionar varias de uma vez.</p>
         </div>
         <div>
           <label className="label">Status</label>
