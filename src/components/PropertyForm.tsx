@@ -1,5 +1,5 @@
 // Formulário (modal) para cadastro e edição de imóveis.
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import type { Imovel } from '../types';
 import { IMOVEL_STATUS, ETAPAS_DESOCUPACAO, MODALIDADES } from '../types';
 import { Modal } from './ui';
@@ -20,14 +20,19 @@ export function PropertyForm({
   imovelExistente?: Imovel | null;
 }) {
   const e = imovelExistente;
-  const [form, setForm] = useState<Partial<Imovel>>(
-    e ?? {
-      status: 'Arrematado',
-      etapaDesocupacao: 'Não iniciada',
-      imovelResidencial: true,
-      socios: [],
-    },
-  );
+  const estadoInicial = (): Partial<Imovel> =>
+    e
+      ? { ...e }
+      : { status: 'Arrematado', etapaDesocupacao: 'Não iniciada', imovelResidencial: true, socios: [] };
+
+  const [form, setForm] = useState<Partial<Imovel>>(estadoInicial);
+
+  // Re-sincroniza o formulário sempre que ele é aberto (evita salvar/mostrar
+  // um snapshot desatualizado — bug em que o valor de venda "não gravava").
+  useEffect(() => {
+    if (aberto) setForm(estadoInicial());
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [aberto, e?.id]);
 
   function set<K extends keyof Imovel>(k: K, v: Imovel[K]) {
     setForm((f) => ({ ...f, [k]: v }));
