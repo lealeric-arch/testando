@@ -1,9 +1,9 @@
-# 🏎️ ENDURO 2026 — Racer 16-bit
+# 🏎️ ENDURO 2026 — Racer estilo Nintendo 64
 
-Um remake com estética **16-bit** do clássico *Enduro*, feito em um único arquivo
-HTML5 + Canvas, sem dependências e sem etapa de build. É só abrir e jogar.
+Um remake com estética **Nintendo 64** do clássico *Enduro*, feito em um único
+arquivo HTML5 + Canvas, sem dependências e sem etapa de build. É só abrir e jogar.
 
-![Enduro 2026](https://img.shields.io/badge/estilo-16--bit-ff5a4a) ![sem deps](https://img.shields.io/badge/dependências-nenhuma-7fffb0)
+![Enduro 2026](https://img.shields.io/badge/estilo-N64-8a4ae0) ![sem deps](https://img.shields.io/badge/dependências-nenhuma-7fffb0)
 
 ## Como jogar
 
@@ -29,19 +29,22 @@ O placar (`SCORE`) soma todos os carros ultrapassados na carreira.
 
 - **Pista pseudo-3D** com curvas, subidas e descidas geradas proceduralmente
   (cada dia tem um traçado diferente).
+- **Visual estilo N64**: renderização suavizada (filtragem bilinear), carros com
+  **sombreamento gouraud** (gradientes) e o característico **fog de distância** —
+  a pista nasce da bruma no horizonte.
 - **Ciclo de dia e clima** que passa por *amanhecer, dia, entardecer, noite,
-  neblina e neve* — cada fase com paleta 16-bit própria, sol/lua, estrelas,
-  faróis à noite, neblina e flocos de neve.
+  neblina e neve* — cada fase com paleta própria, sol/lua, estrelas, faróis à
+  noite, neblina e flocos de neve.
 - **Carros rivais** para ultrapassar, com colisões que reduzem sua velocidade.
-- **HUD retrô** com contador de carros restantes, velocímetro e efeito de
-  scanlines CRT.
+- **HUD estilo Mario Kart 64** com texto contornado grosso, contador de carros
+  restantes e velocímetro, dentro de uma moldura de console.
 - **Recorde** salvo localmente (melhor dia + carros ultrapassados).
 - Controles de **toque** automáticos em dispositivos móveis.
 
 ## Detalhes técnicos
 
-- Resolução interna fixa de `320×200` escalada com *pixel art* nítido
-  (`image-rendering: pixelated`) — o visual 16-bit.
+- Resolução interna de `384×240` escalada com suavização (`image-rendering: auto`)
+  para o aspecto 3D filtrado do N64.
 - Renderizador de estrada baseado em segmentos projetados (técnica estilo
-  *Out Run* / Enduro), tudo desenhado no `<canvas>`.
+  *Out Run* / Enduro), com fog de distância por segmento, tudo no `<canvas>`.
 - 100% *client-side*, arquivo único, funciona offline.
