@@ -3,8 +3,17 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
-<meta name="theme-color" content="#0a0a1a" />
+<meta name="theme-color" content="#0a0b14" />
 <title>ENDURO 2026 — N64 Style Racer</title>
+<!-- PWA: instalável no PC / celular -->
+<link rel="manifest" href="manifest.webmanifest" />
+<link rel="icon" type="image/png" href="icon-192.png" />
+<link rel="apple-touch-icon" href="icon-192.png" />
+<meta name="mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+<meta name="apple-mobile-web-app-title" content="Enduro 2026" />
+<meta name="description" content="Racer pseudo-3D estilo Nintendo 64." />
 <style>
   * { box-sizing: border-box; margin: 0; padding: 0; }
   html, body {
@@ -942,6 +951,13 @@ function frame(now) {
 requestAnimationFrame(frame);
 
 })();
+
+// --- PWA: registra o service worker (habilita instalar no PC e jogar offline) ---
+if ("serviceWorker" in navigator) {
+  window.addEventListener("load", () => {
+    navigator.serviceWorker.register("sw.js").catch(() => { /* offline/local: segue sem SW */ });
+  });
+}
 </script>
 </body>
 </html>

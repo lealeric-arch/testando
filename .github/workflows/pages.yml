@@ -1,10 +1,12 @@
 name: Deploy web (GitHub Pages)
 
 # Publica a versão web do app no GitHub Pages para uso no navegador do celular.
+# A raiz "/" serve o app; o jogo Enduro 2026 é publicado em "/enduro-2026/".
 on:
   workflow_dispatch:
   push:
     branches:
+      - main
       - claude/pc-auction-control-259bzg
 
 permissions:
@@ -40,6 +42,9 @@ jobs:
         env:
           DEPLOY_TARGET: pages
         run: npm run build
+
+      - name: Incluir jogo Enduro 2026 (PWA) em /enduro-2026/
+        run: cp -r enduro-2026 dist/enduro-2026
 
       - name: Configurar Pages
         uses: actions/configure-pages@v5
