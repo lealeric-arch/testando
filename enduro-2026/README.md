@@ -55,6 +55,9 @@ um **COMBO**.
 
 - **Pista pseudo-3D** com curvas, subidas e descidas geradas proceduralmente
   (cada dia tem um traçado diferente).
+- **Cenário completo à beira da pista**: árvores, postes de luz (que acendem à
+  noite), outdoors, prédios com janelas iluminadas e nuvens no céu — com fog de
+  distância e oclusão por relevo.
 - **Nível Need for Speed**: nitro/boost com alargamento de FOV, chamas no
   escapamento, *speed lines*, tremor de câmera em alta velocidade, faíscas nas
   batidas e **combo** de ultrapassagens.

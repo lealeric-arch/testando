@@ -373,7 +373,27 @@ function buildTrack(seed) {
     addRoad(len*0.4|0, len, len*0.4|0, curve, hill);
   }
   addRoad(30,30,30,0,0);
+  addScenery();
   trackLength = segments.length * SEG_LEN;
+}
+
+// Roadside props (trees, lamp posts, billboards, buildings) for a fuller world.
+function addScenery() {
+  const BILLBOARD_TEXT = ["ENDURO", "NITRO", "TURBO", "2026", "N²O"];
+  for (let i = 0; i < segments.length; i++) {
+    const s = segments[i];
+    s.sprites = [];
+    // alternating lamp posts hugging the shoulder
+    if (i % 10 === 0) s.sprites.push({ type:"pole", offset: 1.28 });
+    if (i % 10 === 5) s.sprites.push({ type:"pole", offset:-1.28 });
+    // scattered trees / bushes further out
+    if (rnd() < 0.22) s.sprites.push({ type: rnd()<0.65?"tree":"bush", offset:(rnd()<0.5?-1:1)*(1.5+rnd()*1.8) });
+    if (rnd() < 0.16) s.sprites.push({ type:"tree", offset:(rnd()<0.5?-1:1)*(2.0+rnd()*2.2) });
+    // billboards every so often
+    if (i % 46 === 22) s.sprites.push({ type:"billboard", offset:(rnd()<0.5?-1:1)*1.55, text: BILLBOARD_TEXT[Math.floor(rnd()*BILLBOARD_TEXT.length)] });
+    // distant buildings
+    if (rnd() < 0.06) s.sprites.push({ type:"building", offset:(rnd()<0.5?-1:1)*(2.6+rnd()*1.8), h:0.7+rnd()*1.1, c:Math.floor(rnd()*4) });
+  }
 }
 
 function findSegment(z) {
@@ -618,6 +638,12 @@ function rectPoly(x1,y1,w1,x2,y2,w2,color) {
   ctx.fill();
 }
 
+const CLOUDS = [{x:40,y:30,s:1.1},{x:150,y:52,s:0.8},{x:250,y:26,s:1.3},{x:330,y:60,s:0.9},{x:110,y:74,s:0.7}];
+function drawCloud(cx, cy, s) {
+  for (const o of [[0,0,14],[-11,3,10],[11,3,10],[-4,-5,9],[6,-4,9]]) {
+    ctx.beginPath(); ctx.ellipse(cx+o[0]*s, cy+o[1]*s, o[2]*s, o[2]*s*0.7, 0, 0, Math.PI*2); ctx.fill();
+  }
+}
 function drawSky(t, horizon) {
   const g = ctx.createLinearGradient(0,0,0,horizon+20);
   g.addColorStop(0, t.sky[0]);
@@ -628,6 +654,18 @@ function drawSky(t, horizon) {
 
   // sun / moon
   const phase = PHASE_ORDER[phaseIdx];
+
+  // drifting clouds (light phases only)
+  if (phase==="day"||phase==="dawn"||phase==="dusk"||phase==="snow") {
+    ctx.fillStyle = phase==="dusk" ? "rgba(255,224,205,0.5)"
+                  : phase==="dawn" ? "rgba(255,236,225,0.55)"
+                  : phase==="snow" ? "rgba(255,255,255,0.7)" : "rgba(255,255,255,0.6)";
+    for (const cl of CLOUDS) {
+      const span = W+120;
+      const cxp = ((cl.x - clock*4) % span + span) % span - 60;
+      drawCloud(cxp, cl.y, cl.s);
+    }
+  }
   if (phase === "night") {
     ctx.fillStyle = "#f4f4ff";
     ctx.beginPath(); ctx.arc(240, 42, 12, 0, Math.PI*2); ctx.fill();
@@ -710,7 +748,87 @@ function drawSparks() {
   ctx.globalAlpha = 1;
 }
 
+// Roadside prop rendered onto the projected road surface, occluded by nearer hills.
+function drawSprite(sp, seg, t, fog) {
+  const p = seg.p1.screen;
+  const unit = p.w * 0.9;                 // size scales with road depth
+  if (p.scale <= 0 || unit < 0.6) return;
+  const gx = p.x + p.w * sp.offset;       // ground x on screen
+  const gy = p.y;                         // road-surface y at this segment
+  const clipY = seg._clip;
+  if (clipY < 1 || gx < -80 || gx > W+80) return;
+  const night = PHASE_ORDER[phaseIdx] === "night";
+  ctx.save();
+  ctx.beginPath(); ctx.rect(0, 0, W, clipY); ctx.clip();   // hide parts behind nearer hills
+  let bx=gx, by=gy, bw2=unit, bh=unit;    // bbox for fog fade
+
+  if (sp.type === "tree") {
+    const th = unit*2.6, tw = unit*0.9;
+    ctx.fillStyle = "#5b3a22";
+    ctx.fillRect(gx-tw*0.16, gy-th*0.45, tw*0.32, th*0.45);
+    const cg = ctx.createLinearGradient(0, gy-th, 0, gy-th*0.3);
+    cg.addColorStop(0, night?"#1c3a26":"#57a85c"); cg.addColorStop(1, night?"#112a1a":"#2f6f38");
+    ctx.fillStyle = cg;
+    for (const o of [[0,-th*0.78,tw*1.1],[-tw*0.6,-th*0.55,tw*0.82],[tw*0.6,-th*0.55,tw*0.82],[0,-th*0.45,tw*0.98]]) {
+      ctx.beginPath(); ctx.ellipse(gx+o[0], gy+o[1], o[2], o[2]*1.05, 0, 0, Math.PI*2); ctx.fill();
+    }
+    by=gy-th; bw2=tw*1.5; bh=th;
+  } else if (sp.type === "bush") {
+    const r = unit*0.7;
+    ctx.fillStyle = night?"#16301f":"#43873f";
+    ctx.beginPath(); ctx.ellipse(gx, gy-r*0.6, r, r*0.7, 0, 0, Math.PI*2); ctx.fill();
+    by=gy-r; bw2=r*1.2; bh=r*1.3;
+  } else if (sp.type === "pole") {
+    const ph = unit*2.8, dir = sp.offset<0?1:-1;
+    ctx.fillStyle = "#6a6f7a";
+    ctx.fillRect(gx-unit*0.06, gy-ph, unit*0.12, ph);
+    ctx.fillRect(gx, gy-ph, dir*unit*0.5, unit*0.09);
+    const lx = gx + dir*unit*0.5, ly = gy-ph+unit*0.12;
+    ctx.fillStyle = night?"#fff3b0":"#3a3f48";
+    ctx.beginPath(); ctx.ellipse(lx, ly, unit*0.18, unit*0.1, 0, 0, Math.PI*2); ctx.fill();
+    if (night) {
+      const gg = ctx.createRadialGradient(lx,ly,0,lx,ly,unit*1.3);
+      gg.addColorStop(0,"rgba(255,240,170,0.5)"); gg.addColorStop(1,"rgba(255,240,170,0)");
+      ctx.fillStyle=gg; ctx.beginPath(); ctx.arc(lx,ly,unit*1.3,0,Math.PI*2); ctx.fill();
+    }
+    by=gy-ph; bw2=unit*0.8; bh=ph;
+  } else if (sp.type === "billboard") {
+    const bwid=unit*2.2, bhei=unit*1.2, postH=unit*1.4;
+    ctx.fillStyle="#4a4f5a"; ctx.fillRect(gx-unit*0.1, gy-postH, unit*0.2, postH);
+    const px0=gx-bwid/2, py0=gy-postH-bhei;
+    ctx.fillStyle="#12151d"; ctx.fillRect(px0-2,py0-2,bwid+4,bhei+4);
+    const pg=ctx.createLinearGradient(px0,py0,px0,py0+bhei);
+    pg.addColorStop(0,"#ff3a4a"); pg.addColorStop(1,"#8a1020");
+    ctx.fillStyle=pg; ctx.fillRect(px0,py0,bwid,bhei);
+    if (unit>3 && sp.text) {
+      ctx.fillStyle="#fff"; ctx.font=`800 ${Math.max(6,unit*0.7)|0}px Arial`;
+      ctx.textAlign="center"; ctx.textBaseline="middle"; ctx.fillText(sp.text, gx, py0+bhei/2);
+    }
+    by=py0; bw2=bwid*0.6; bh=postH+bhei;
+  } else if (sp.type === "building") {
+    const bh2 = unit*3.4*(sp.h||1), bwid=unit*1.8;
+    const cols=["#3a4a6a","#4a3a5a","#5a4a3a","#3a5a5a"];
+    ctx.fillStyle = night?"#1a2030":cols[sp.c||0];
+    ctx.fillRect(gx-bwid/2, gy-bh2, bwid, bh2);
+    ctx.fillStyle = night?"rgba(255,230,140,0.85)":"rgba(200,220,255,0.5)";
+    const wr = Math.max(1, unit*0.18);
+    for (let yy=gy-bh2+wr*2; yy<gy-wr*2; yy+=wr*2.4)
+      for (let xx=gx-bwid/2+wr; xx<gx+bwid/2-wr; xx+=wr*2.2)
+        if (((xx+yy)|0)%3!==0) ctx.fillRect(xx,yy,wr,wr);
+    by=gy-bh2; bw2=bwid*0.6; bh=bh2;
+  }
+  if (fog > 0.02) {
+    ctx.globalAlpha = Math.min(0.9, fog);
+    ctx.fillStyle = t.fog;
+    ctx.fillRect(bx-bw2, by, bw2*2, bh+2);
+    ctx.globalAlpha = 1;
+  }
+  ctx.restore();
+}
+
+let frameCounter = 0;
 function render() {
+  frameCounter++;
   const t = curTheme();
   const baseSeg = findSegment(player.z);
   const basePercent = (player.z % SEG_LEN) / SEG_LEN;
@@ -757,6 +875,7 @@ function render() {
     if (seg.p1.cam.z <= CAM_DEPTH || seg.p2.screen.y >= maxY) continue;
     if (seg.p2.screen.y >= seg.p1.screen.y) continue;
 
+    seg._clip = maxY; seg._df = frameCounter;   // for roadside-sprite occlusion
     const p1 = seg.p1.screen, p2 = seg.p2.screen;
     const dark = seg.color === 0;
     const grass  = dark ? t.grassD  : t.grassL;
@@ -790,6 +909,14 @@ function render() {
       ctx.globalAlpha = 1;
     }
     maxY = p2.y;
+  }
+
+  // roadside scenery — second pass, back-to-front, occluded by hills via clip
+  for (let n = DRAW_DIST-1; n >= 0; n--) {
+    const seg = segments[(baseSeg.index + n) % segments.length];
+    if (seg._df !== frameCounter || !seg.sprites || !seg.sprites.length) continue;
+    const fogAmt = Math.pow(n / DRAW_DIST, 1.6);
+    for (const sp of seg.sprites) drawSprite(sp, seg, t, fogAmt);
   }
 
   // draw rival cars (far to near)
