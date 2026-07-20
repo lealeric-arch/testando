@@ -181,6 +181,39 @@ export interface Imovel {
   observacoes?: string;
 }
 
+// Documento anexado a um imóvel (armazenado localmente como data URL base64).
+export type DocumentoCategoria =
+  | 'Matrícula'
+  | 'Edital'
+  | 'Auto de arrematação'
+  | 'ITBI'
+  | 'Escritura'
+  | 'Contrato'
+  | 'Foto'
+  | 'Outros';
+
+export const DOC_CATEGORIAS: DocumentoCategoria[] = [
+  'Matrícula',
+  'Edital',
+  'Auto de arrematação',
+  'ITBI',
+  'Escritura',
+  'Contrato',
+  'Foto',
+  'Outros',
+];
+
+export interface Documento {
+  id: string;
+  imovelId: string;
+  nome: string; // nome do arquivo
+  tipo: string; // mime type
+  tamanho: number; // bytes
+  categoria: DocumentoCategoria;
+  dataUrl: string; // conteúdo em base64 (data URL)
+  createdAt: string;
+}
+
 // Simulação de viabilidade pré-lance (não persiste no imóvel).
 export interface ViabilidadeSimulacao {
   titulo: string;

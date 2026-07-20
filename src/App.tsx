@@ -1,7 +1,7 @@
 // Gerenciador de estado global, sincronização de dados e roteamento por abas.
 import { motion } from 'motion/react';
 import { useEffect, useMemo, useState } from 'react';
-import type { Aba, Gasto, Imovel } from './types';
+import type { Aba, Documento, Gasto, Imovel } from './types';
 import { store } from './utils/storage';
 import { semearSeVazio } from './utils/seed';
 import { gerarAlertas } from './utils/alerts';
@@ -16,6 +16,7 @@ import { Toaster } from './components/Toaster';
 export default function App() {
   const [imoveis, setImoveis] = useState<Imovel[]>([]);
   const [gastos, setGastos] = useState<Gasto[]>([]);
+  const [documentos, setDocumentos] = useState<Documento[]>([]);
   const [aba, setAba] = useState<Aba>('dashboard');
   const [imovelSelecionado, setImovelSelecionado] = useState<string | null>(null);
   const [pronto, setPronto] = useState(false);
@@ -26,9 +27,10 @@ export default function App() {
     (async () => {
       await store.init();
       await semearSeVazio();
-      unsub = store.subscribe(({ imoveis, gastos }) => {
+      unsub = store.subscribe(({ imoveis, gastos, documentos }) => {
         setImoveis(imoveis);
         setGastos(gastos);
+        setDocumentos(documentos);
       });
       setPronto(true);
     })();
@@ -131,6 +133,7 @@ export default function App() {
             <PropertyDetail
               imovel={imovelAtual}
               gastos={gastos}
+              documentos={documentos}
               onVoltar={() => {
                 setAba('portfolio');
                 setImovelSelecionado(null);

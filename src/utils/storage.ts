@@ -1,14 +1,16 @@
 // Persistência local (usuário único, sem nuvem/compartilhamento).
 // Todos os dados ficam no localStorage do próprio computador.
-import type { Gasto, Imovel } from '../types';
+import type { Documento, Gasto, Imovel } from '../types';
 import { baixarArquivo } from './download';
 
 const LS_IMOVEIS = 'ec_imoveis';
 const LS_GASTOS = 'ec_gastos';
+const LS_DOCUMENTOS = 'ec_documentos';
 
 export interface EstadoDados {
   imoveis: Imovel[];
   gastos: Gasto[];
+  documentos: Documento[];
 }
 
 type Listener = (estado: EstadoDados) => void;
@@ -29,6 +31,7 @@ export function isDesktop(): boolean {
 class DataStore {
   private imoveis: Imovel[] = [];
   private gastos: Gasto[] = [];
+  private documentos: Documento[] = [];
   private listeners = new Set<Listener>();
 
   async init(): Promise<void> {
@@ -39,13 +42,16 @@ class DataStore {
         const dados = await d.carregar();
         this.imoveis = Array.isArray(dados?.imoveis) ? dados.imoveis : [];
         this.gastos = Array.isArray(dados?.gastos) ? dados.gastos : [];
+        this.documentos = Array.isArray(dados?.documentos) ? dados.documentos : [];
       } catch {
         this.imoveis = [];
         this.gastos = [];
+        this.documentos = [];
       }
     } else {
       this.imoveis = readLS<Imovel[]>(LS_IMOVEIS, []);
       this.gastos = readLS<Gasto[]>(LS_GASTOS, []);
+      this.documentos = readLS<Documento[]>(LS_DOCUMENTOS, []);
     }
     this.emit();
   }
@@ -57,7 +63,7 @@ class DataStore {
   }
 
   snapshot(): EstadoDados {
-    return { imoveis: this.imoveis, gastos: this.gastos };
+    return { imoveis: this.imoveis, gastos: this.gastos, documentos: this.documentos };
   }
 
   private emit() {
@@ -69,10 +75,11 @@ class DataStore {
     const d = desktop();
     if (d) {
       // Grava no arquivo (fire-and-forget); erros não bloqueiam a UI.
-      d.salvar({ imoveis: this.imoveis, gastos: this.gastos }).catch(() => {});
+      d.salvar(this.snapshot()).catch(() => {});
     } else {
       writeLS(LS_IMOVEIS, this.imoveis);
       writeLS(LS_GASTOS, this.gastos);
+      writeLS(LS_DOCUMENTOS, this.documentos);
     }
   }
 
@@ -98,10 +105,11 @@ class DataStore {
     this.emit();
   }
 
-  // Exclusão em cascata: remove o imóvel e todos os gastos vinculados.
+  // Exclusão em cascata: remove o imóvel, seus gastos e documentos vinculados.
   async excluirImovel(imovelId: string): Promise<void> {
     this.imoveis = this.imoveis.filter((i) => i.id !== imovelId);
     this.gastos = this.gastos.filter((g) => g.imovelId !== imovelId);
+    this.documentos = this.documentos.filter((doc) => doc.imovelId !== imovelId);
     this.persistir();
     this.emit();
   }
@@ -121,6 +129,21 @@ class DataStore {
     this.emit();
   }
 
+  // ---- Mutações de documentos ----
+  async salvarDocumento(doc: Documento): Promise<void> {
+    const idx = this.documentos.findIndex((d) => d.id === doc.id);
+    if (idx >= 0) this.documentos = this.documentos.map((d) => (d.id === doc.id ? doc : d));
+    else this.documentos = [...this.documentos, doc];
+    this.persistir();
+    this.emit();
+  }
+
+  async excluirDocumento(docId: string): Promise<void> {
+    this.documentos = this.documentos.filter((d) => d.id !== docId);
+    this.persistir();
+    this.emit();
+  }
+
   // ---- Backup / restauração ----
   exportarEstado(): string {
     return JSON.stringify(
@@ -135,18 +158,23 @@ class DataStore {
     const dados = JSON.parse(json);
     const imoveis: Imovel[] = Array.isArray(dados.imoveis) ? dados.imoveis : [];
     const gastos: Gasto[] = Array.isArray(dados.gastos) ? dados.gastos : [];
+    const documentos: Documento[] = Array.isArray(dados.documentos) ? dados.documentos : [];
     if (!imoveis.length && !gastos.length) throw new Error('Arquivo sem imóveis nem gastos.');
 
     if (modo === 'substituir') {
       this.imoveis = imoveis;
       this.gastos = gastos;
+      this.documentos = documentos;
     } else {
       const mapaI = new Map(this.imoveis.map((i) => [i.id, i]));
       imoveis.forEach((i) => mapaI.set(i.id, i));
       const mapaG = new Map(this.gastos.map((g) => [g.id, g]));
       gastos.forEach((g) => mapaG.set(g.id, g));
+      const mapaD = new Map(this.documentos.map((d) => [d.id, d]));
+      documentos.forEach((d) => mapaD.set(d.id, d));
       this.imoveis = Array.from(mapaI.values());
       this.gastos = Array.from(mapaG.values());
+      this.documentos = Array.from(mapaD.values());
     }
     this.persistir();
     this.emit();

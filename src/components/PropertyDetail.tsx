@@ -1,7 +1,7 @@
 // Detalhamento do ativo com 4 abas financeiras: Gastos, Sociedade, Desocupação e Calculadora GCAP.
 import { AnimatePresence, motion } from 'motion/react';
 import { useMemo, useState } from 'react';
-import type { EtapaDesocupacao, Gasto, Imovel, ImovelStatus } from '../types';
+import type { Documento, EtapaDesocupacao, Gasto, Imovel, ImovelStatus } from '../types';
 import { ETAPAS_DESOCUPACAO, IMOVEL_STATUS } from '../types';
 import { formatBRL, formatPct, resultadoImovel, resumoFinanceiro } from '../utils/finance';
 import { store } from '../utils/storage';
@@ -14,17 +14,20 @@ import { GastosTab } from './GastosTab';
 import { ResultadoTab } from './ResultadoTab';
 import { SociosTab } from './SociosTab';
 import { GcapTab } from './GcapTab';
+import { DocumentosTab } from './DocumentosTab';
 import { ReportView } from './ReportView';
 
-type SubAba = 'gastos' | 'resultado' | 'sociedade' | 'desocupacao' | 'gcap';
+type SubAba = 'gastos' | 'resultado' | 'sociedade' | 'desocupacao' | 'documentos' | 'gcap';
 
 export function PropertyDetail({
   imovel,
   gastos,
+  documentos,
   onVoltar,
 }: {
   imovel: Imovel;
   gastos: Gasto[];
+  documentos: Documento[];
   onVoltar: () => void;
 }) {
   const [sub, setSub] = useState<SubAba>('gastos');
@@ -57,6 +60,7 @@ export function PropertyDetail({
     { id: 'resultado', label: 'Resultado', icone: '📈' },
     { id: 'sociedade', label: 'Sociedade', icone: '🤝' },
     { id: 'desocupacao', label: 'Desocupação', icone: '⚖️' },
+    { id: 'documentos', label: 'Documentos', icone: '📎' },
     { id: 'gcap', label: 'Calculadora GCAP', icone: '🧮' },
   ];
 
@@ -189,6 +193,7 @@ export function PropertyDetail({
               {sub === 'desocupacao' && (
                 <DesocupacaoTab imovel={imovel} onEtapa={atualizarEtapa} />
               )}
+              {sub === 'documentos' && <DocumentosTab imovel={imovel} documentos={documentos} />}
               {sub === 'gcap' && <GcapTab imovel={imovel} gastos={gastosDoImovel} />}
             </motion.div>
           </AnimatePresence>

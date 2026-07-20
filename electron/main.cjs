@@ -11,11 +11,15 @@ function arquivoDados() {
 ipcMain.handle('store:load', () => {
   try {
     const p = arquivoDados();
-    if (!fs.existsSync(p)) return { imoveis: [], gastos: [] };
+    if (!fs.existsSync(p)) return { imoveis: [], gastos: [], documentos: [] };
     const dados = JSON.parse(fs.readFileSync(p, 'utf8'));
-    return { imoveis: Array.isArray(dados.imoveis) ? dados.imoveis : [], gastos: Array.isArray(dados.gastos) ? dados.gastos : [] };
+    return {
+      imoveis: Array.isArray(dados.imoveis) ? dados.imoveis : [],
+      gastos: Array.isArray(dados.gastos) ? dados.gastos : [],
+      documentos: Array.isArray(dados.documentos) ? dados.documentos : [],
+    };
   } catch {
-    return { imoveis: [], gastos: [] };
+    return { imoveis: [], gastos: [], documentos: [] };
   }
 });
 
@@ -23,7 +27,7 @@ ipcMain.handle('store:save', (_evt, dados) => {
   try {
     const p = arquivoDados();
     const tmp = p + '.tmp';
-    fs.writeFileSync(tmp, JSON.stringify(dados ?? { imoveis: [], gastos: [] }, null, 2), 'utf8');
+    fs.writeFileSync(tmp, JSON.stringify(dados ?? { imoveis: [], gastos: [], documentos: [] }, null, 2), 'utf8');
     fs.renameSync(tmp, p); // gravação atômica
     return { ok: true };
   } catch (err) {
