@@ -39,13 +39,29 @@ O placar (`SCORE`) soma todos os carros ultrapassados na carreira.
 | Acelerar    | `↑` / `W`         | botão ▲ (verde)        |
 | Frear       | `↓` / `S`         | botão ■ (vermelho)     |
 | Virar       | `←` `→` / `A` `D` | botões ◀ ▶             |
+| **Nitro**   | `Shift`           | botão **N²O** (azul)   |
+| Som on/off  | `M`               | —                      |
 | Começar     | `Enter` / `Espaço`| tocar na tela          |
 | Pausar      | `P`               | —                      |
+
+### Nitro / turbo
+Você começa cada dia com um pouco de **nitro** e recarrega a cada carro
+ultrapassado. Segure `Shift` (ou o botão **N²O**) para disparar o boost:
+ultrapassa a velocidade máxima normal, abre o campo de visão, solta chamas no
+escapamento e enche a tela de *speed lines*. Ultrapassagens em sequência somam
+um **COMBO**.
 
 ## Características
 
 - **Pista pseudo-3D** com curvas, subidas e descidas geradas proceduralmente
   (cada dia tem um traçado diferente).
+- **Nível Need for Speed**: nitro/boost com alargamento de FOV, chamas no
+  escapamento, *speed lines*, tremor de câmera em alta velocidade, faíscas nas
+  batidas e **combo** de ultrapassagens.
+- **Som sintetizado** (WebAudio, sem arquivos): motor com RPM ligado à
+  velocidade, sopro do nitro, apito de ultrapassagem e estrondo de batida.
+- **HUD estilo NFS**: velocímetro circular com agulha, marcha, barra de nitro e
+  contador de combo.
 - **Visual estilo N64**: renderização suavizada (filtragem bilinear), carros com
   **sombreamento gouraud** (gradientes) e o característico **fog de distância** —
   a pista nasce da bruma no horizonte.

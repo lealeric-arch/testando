@@ -68,6 +68,8 @@
   #bRight { left: 116px; }
   #bBrake { right: 116px; background: rgba(180,50,60,.35); border-color: rgba(255,120,120,.6); }
   #bGas   { right: 18px; background: rgba(50,180,90,.35); border-color: rgba(120,255,150,.6); }
+  #bNitro { right: 62px; bottom: 116px; width: 66px; height: 66px; font-size: 15px;
+            background: rgba(50,110,255,.4); border-color: rgba(140,200,255,.7); color:#dff0ff; }
   @media (pointer: coarse) { #touch { display: block; } }
   #hint {
     position: fixed; bottom: 6px; left: 0; right: 0; text-align: center;
@@ -87,8 +89,9 @@
     <div id="bRight" class="pad">▶</div>
     <div id="bBrake" class="pad">■</div>
     <div id="bGas"   class="pad">▲</div>
+    <div id="bNitro" class="pad">N²O</div>
   </div>
-  <div id="hint">← → dirigir · ↑ acelerar · ↓ frear · ENTER começar · P pausar</div>
+  <div id="hint">← → dirigir · ↑ acelerar · ↓ frear · SHIFT nitro · M som · P pausar</div>
 
 <script>
 (() => {
@@ -139,6 +142,14 @@ const OFFROAD_DEC = -MAX_SPEED / 2.4;
 const OFFROAD_CAP = MAX_SPEED / 4;
 const CRASH_SPEED = MAX_SPEED / 5;   // speed you drop to after hitting a car
 
+// ---- Need-for-Speed layer: nitro / boost ------------------------------------
+const NITRO_BOOST    = 1.42;         // top-speed multiplier while boosting
+const NITRO_ACCEL    = MAX_SPEED / 2.6;
+const NITRO_DRAIN    = 0.40;         // nitro spent per second while boosting
+const NITRO_REGEN    = 0.05;         // slow passive refill per second
+const NITRO_PER_PASS = 0.20;         // refill gained per overtake
+let camDepth = CAM_DEPTH;            // dynamic FOV (widens on boost)
+
 // ---- Colors (16-bit palette per theme) --------------------------------------
 // Each day-phase has its own sky / grass / road / rumble palette.
 const THEMES = {
@@ -164,19 +175,96 @@ const THEMES = {
 // Sequence of phases that cycle each day.
 const PHASE_ORDER = ["dawn","day","dusk","night","fog","snow"];
 
+// ---- Audio (synthesized with WebAudio — no external assets) -----------------
+let audio = null, muted = false, audioTried = false;
+function initAudio() {
+  if (audio || muted || audioTried) { if (audio && audio.ctxA.state === "suspended") audio.ctxA.resume(); return; }
+  audioTried = true;
+  try {
+    const AC = window.AudioContext || window.webkitAudioContext;
+    if (!AC) return;
+    const ctxA = new AC();
+    const master = ctxA.createGain(); master.gain.value = 0.85; master.connect(ctxA.destination);
+    // engine — two detuned oscillators through a lowpass (throaty motor)
+    const o1 = ctxA.createOscillator(); o1.type = "sawtooth";
+    const o2 = ctxA.createOscillator(); o2.type = "square";
+    const eg = ctxA.createGain(); eg.gain.value = 0.02;
+    const lp = ctxA.createBiquadFilter(); lp.type = "lowpass"; lp.frequency.value = 700;
+    o1.connect(eg); o2.connect(eg); eg.connect(lp); lp.connect(master);
+    o1.start(); o2.start();
+    // wind / nitro hiss — filtered white noise
+    const buf = ctxA.createBuffer(1, ctxA.sampleRate * 2, ctxA.sampleRate);
+    const d = buf.getChannelData(0); for (let i=0;i<d.length;i++) d[i] = Math.random()*2-1;
+    const noise = ctxA.createBufferSource(); noise.buffer = buf; noise.loop = true;
+    const nf = ctxA.createBiquadFilter(); nf.type = "bandpass"; nf.frequency.value = 1000; nf.Q.value = 0.6;
+    const ng = ctxA.createGain(); ng.gain.value = 0;
+    noise.connect(nf); nf.connect(ng); ng.connect(master); noise.start();
+    audio = { ctxA, master, o1, o2, eg, lp, nf, ng };
+    if (ctxA.state === "suspended") ctxA.resume();
+  } catch (e) { audio = null; }
+}
+function updateAudio() {
+  if (!audio) return;
+  try {
+    const a = audio, now = a.ctxA.currentTime;
+    const sp = Math.min(1.2, player.speed / MAX_SPEED);
+    const playing = state === "play" && !paused;
+    const rpm = playing ? (0.12 + sp*0.9) : 0.18;
+    const base = 52 + rpm*130 + (player.boosting?36:0);
+    a.o1.frequency.setTargetAtTime(base, now, 0.05);
+    a.o2.frequency.setTargetAtTime(base*1.5, now, 0.05);
+    a.lp.frequency.setTargetAtTime(480 + sp*2500 + (player.boosting?1600:0), now, 0.06);
+    a.eg.gain.setTargetAtTime(playing ? (0.05 + sp*0.09) : 0.015, now, 0.08);
+    a.ng.gain.setTargetAtTime(player.boosting ? 0.16 : sp*0.035, now, 0.1);
+    a.nf.frequency.setTargetAtTime(player.boosting ? 2600 : 900 + sp*1100, now, 0.1);
+  } catch (e) {}
+}
+function sfxPass() {
+  if (!audio) return;
+  try {
+    const a = audio, t = a.ctxA.currentTime;
+    const o = a.ctxA.createOscillator(); o.type = "triangle";
+    const g = a.ctxA.createGain(); g.gain.value = 0;
+    o.frequency.setValueAtTime(680, t); o.frequency.exponentialRampToValueAtTime(1360, t+0.12);
+    g.gain.linearRampToValueAtTime(0.22, t+0.02); g.gain.linearRampToValueAtTime(0, t+0.22);
+    o.connect(g); g.connect(a.master); o.start(t); o.stop(t+0.24);
+  } catch (e) {}
+}
+function sfxCrash() {
+  if (!audio) return;
+  try {
+    const a = audio, t = a.ctxA.currentTime;
+    const buf = a.ctxA.createBuffer(1, a.ctxA.sampleRate*0.3, a.ctxA.sampleRate);
+    const d = buf.getChannelData(0);
+    for (let i=0;i<d.length;i++) d[i] = (Math.random()*2-1) * Math.pow(1 - i/d.length, 2);
+    const s = a.ctxA.createBufferSource(); s.buffer = buf;
+    const f = a.ctxA.createBiquadFilter(); f.type = "lowpass"; f.frequency.value = 1400;
+    const g = a.ctxA.createGain(); g.gain.value = 0.5;
+    s.connect(f); f.connect(g); g.connect(a.master); s.start(t);
+  } catch (e) {}
+}
+function toggleMute() {
+  muted = !muted;
+  if (audio) audio.master.gain.value = muted ? 0 : 0.85;
+  else if (!muted) initAudio();
+}
+
 // ---- Input -------------------------------------------------------------------
 const keys = {};
-const K = { left:false, right:false, gas:false, brake:false };
+const K = { left:false, right:false, gas:false, brake:false, boost:false };
 function setKey(e, down) {
   const c = e.code;
   if (c === "ArrowLeft"  || c === "KeyA") K.left  = down;
   else if (c === "ArrowRight" || c === "KeyD") K.right = down;
   else if (c === "ArrowUp"   || c === "KeyW") K.gas   = down;
   else if (c === "ArrowDown" || c === "KeyS") K.brake = down;
+  else if (c === "ShiftLeft" || c === "ShiftRight") K.boost = down;
   else return;
   e.preventDefault();
 }
 addEventListener("keydown", e => {
+  initAudio();
+  if (e.code === "KeyM") { toggleMute(); e.preventDefault(); return; }
   if (e.repeat) { setKey(e, true); return; }
   if (e.code === "Enter" || e.code === "Space") {
     if (state === "menu" || state === "gameover") startGame();
@@ -190,7 +278,7 @@ addEventListener("keyup", e => setKey(e, false));
 
 function bindPad(id, prop) {
   const el = document.getElementById(id);
-  const on  = e => { K[prop] = true;  e.preventDefault(); };
+  const on  = e => { initAudio(); K[prop] = true;  e.preventDefault(); };
   const off = e => { K[prop] = false; e.preventDefault(); };
   el.addEventListener("touchstart", on,  {passive:false});
   el.addEventListener("touchend",   off, {passive:false});
@@ -201,8 +289,10 @@ function bindPad(id, prop) {
 }
 bindPad("bLeft","left"); bindPad("bRight","right");
 bindPad("bGas","gas");   bindPad("bBrake","brake");
+bindPad("bNitro","boost");
 // Tap anywhere to advance on menus (mobile)
 cv.addEventListener("touchstart", e => {
+  initAudio();
   if (state === "menu" || state === "gameover") { startGame(); e.preventDefault(); }
   else if (state === "dayclear") { nextDay(); e.preventDefault(); }
 }, {passive:false});
@@ -217,7 +307,11 @@ let player = {
   x: 0,           // -1..1 position across road
   z: 0,           // world position along track
   speed: 0,
+  nitro: 0.6,     // 0..1 nitro tank
+  boosting: false,
 };
+let combo = 0, comboTimer = 0;   // overtake combo (NFS-style)
+let sparks = [];                 // collision sparks (screen-space particles)
 let day = 1;
 let carsToPass = 0;
 let carsPassed = 0;
@@ -317,12 +411,34 @@ function beginDay() {
   buildTrack(1000 + day*137);
   resetCars();
   player.x = 0; player.z = 0; player.speed = 0;
+  player.nitro = 0.6; player.boosting = false;
+  combo = 0; comboTimer = 0; sparks = [];
   carsToPass = 5 + Math.floor(day * 4.5);   // rising quota
   carsPassed = 0;
   distance = 0;
   phaseTime = 0;
   phaseIdx = (day - 1) % PHASE_ORDER.length;
   crashTimer = 0; flashTimer = 0; steerShake = 0;
+}
+function spawnSparks(sx, sy, n) {
+  for (let i=0;i<n;i++) {
+    const ang = Math.random()*Math.PI - Math.PI;   // upward-ish fan
+    const spd = 40 + Math.random()*140;
+    sparks.push({
+      x: sx + (Math.random()-0.5)*20, y: sy + (Math.random()-0.5)*8,
+      vx: Math.cos(ang)*spd, vy: -Math.abs(Math.sin(ang))*spd - 20,
+      life: 0.4 + Math.random()*0.4, max: 0.8,
+      col: Math.random()<0.5 ? "#ffd24a" : "#ff8a3a", sz: Math.random()<0.5?2:1,
+    });
+  }
+  if (sparks.length > 160) sparks.splice(0, sparks.length-160);
+}
+function updateSparks(dt) {
+  for (let i=sparks.length-1;i>=0;i--) {
+    const s = sparks[i];
+    s.x += s.vx*dt; s.y += s.vy*dt; s.vy += 320*dt; s.life -= dt;
+    if (s.life <= 0) sparks.splice(i,1);
+  }
 }
 function nextDay() {
   day++;
@@ -359,20 +475,38 @@ function update(dt) {
   // centrifugal push in curves
   player.x -= dx * speedPct * seg.curve * CENTRIFUGAL;
 
+  // offroad check (before accel so it can cap boost)
+  const offroad = Math.abs(player.x) > 1;
+
+  // nitro / boost — NFS-style overdrive above the normal top speed
+  const wantBoost = K.boost && player.nitro > 0 && player.speed > MAX_SPEED*0.25 && !offroad;
+  player.boosting = wantBoost;
+  let topSpeed = MAX_SPEED;
+  if (wantBoost) {
+    topSpeed = MAX_SPEED * NITRO_BOOST;
+    player.speed += NITRO_ACCEL * dt;
+    player.nitro = Math.max(0, player.nitro - NITRO_DRAIN * dt);
+  } else {
+    player.nitro = Math.min(1, player.nitro + NITRO_REGEN * dt);
+  }
+
   // accel / brake
   if (K.gas)        player.speed += ACCEL * dt;
   else if (K.brake) player.speed += BRAKE * dt;
-  else              player.speed += DECEL * dt;
+  else if (!wantBoost) player.speed += DECEL * dt;
 
   // offroad
-  const offroad = Math.abs(player.x) > 1;
   if (offroad) {
     if (player.speed > OFFROAD_CAP) player.speed += OFFROAD_DEC * dt;
     steerShake = Math.sin(player.z*0.05); // rumble
   }
 
-  player.speed = Math.max(0, Math.min(player.speed, MAX_SPEED));
+  player.speed = Math.max(0, Math.min(player.speed, topSpeed));
   player.x = Math.max(-2, Math.min(2, player.x));
+
+  // combo decay + spark particles
+  if (comboTimer > 0) { comboTimer -= dt; if (comboTimer <= 0) combo = 0; }
+  updateSparks(dt);
 
   // crash recovery slowdown wobble
   if (crashTimer > 0) crashTimer -= dt;
@@ -404,6 +538,9 @@ function update(dt) {
           steerShake = (player.x < c.offset ? -3 : 3);
           // nudge player aside
           player.x += (player.x < c.offset ? -0.3 : 0.3);
+          combo = 0; comboTimer = 0;
+          spawnSparks(W/2, H-42, 20);
+          sfxCrash();
         }
       }
     }
@@ -431,6 +568,9 @@ function update(dt) {
         c.passed = true;
         carsPassed++; totalPassed++;
         flashTimer = 0.9;
+        combo++; comboTimer = 3.5;
+        player.nitro = Math.min(1, player.nitro + NITRO_PER_PASS);
+        sfxPass();
         if (carsPassed >= carsToPass) { dayCleared(); return; }
       }
     }
@@ -460,7 +600,7 @@ function project(p, camX, camY, camZ) {
   p.cam.x = (p.world.x || 0) - camX;
   p.cam.y = (p.world.y || 0) - camY;
   p.cam.z = (p.world.z || 0) - camZ;
-  const scale = CAM_DEPTH / (p.cam.z || 0.0001);
+  const scale = camDepth / (p.cam.z || 0.0001);
   p.screen.scale = scale;
   p.screen.x = Math.round(W/2 + scale * p.cam.x * W/2);
   p.screen.y = Math.round(H/2 - scale * p.cam.y * H/2);
@@ -484,7 +624,7 @@ function drawSky(t, horizon) {
   g.addColorStop(0.55, t.sky[1]);
   g.addColorStop(1, t.sky[2]);
   ctx.fillStyle = g;
-  ctx.fillRect(0,0,W,horizon+20);
+  ctx.fillRect(-8,0,W+16,horizon+20);
 
   // sun / moon
   const phase = PHASE_ORDER[phaseIdx];
@@ -530,6 +670,46 @@ function hexA(hex, a) {
   return `rgba(${(n>>16)&255},${(n>>8)&255},${n&255},${a})`;
 }
 
+// NFS-style speed streaks radiating from the vanishing point at high speed.
+function drawSpeedFX() {
+  const sp = player.speed / MAX_SPEED;
+  const intensity = Math.max(0, sp - 0.55) / 0.45;
+  const amt = Math.min(1, intensity + (player.boosting ? 0.6 : 0));
+  if (amt <= 0.02) return;
+  const cxp = W/2, cyp = H*0.46;
+  ctx.lineWidth = 1;
+  ctx.strokeStyle = player.boosting
+    ? "rgba(150,200,255," + (0.55*amt).toFixed(3) + ")"
+    : "rgba(255,255,255," + (0.35*amt).toFixed(3) + ")";
+  const n = 16 + (amt*22|0);
+  for (let i=0;i<n;i++) {
+    const ang = (i/n)*Math.PI*2 + (i%2 ? clock*1.5 : -clock*1.5);
+    const r0 = 26 + ((clock*520 + i*61) % (W*0.55));
+    const r1 = r0 + 26 + amt*46;
+    const dcx = Math.cos(ang), dcy = Math.sin(ang)*0.72;
+    ctx.beginPath();
+    ctx.moveTo(cxp + dcx*r0, cyp + dcy*r0);
+    ctx.lineTo(cxp + dcx*r1, cyp + dcy*r1);
+    ctx.stroke();
+  }
+  // boost tints the screen edges blue
+  if (player.boosting) {
+    const g = ctx.createRadialGradient(W/2, H*0.5, H*0.18, W/2, H*0.5, W*0.62);
+    g.addColorStop(0, "rgba(40,90,255,0)");
+    g.addColorStop(1, "rgba(40,90,255,0.26)");
+    ctx.fillStyle = g; ctx.fillRect(-8,-8,W+16,H+16);
+  }
+}
+
+function drawSparks() {
+  for (const s of sparks) {
+    ctx.globalAlpha = Math.max(0, Math.min(1, s.life / s.max));
+    ctx.fillStyle = s.col;
+    ctx.fillRect(s.x|0, s.y|0, s.sz+1, s.sz+1);
+  }
+  ctx.globalAlpha = 1;
+}
+
 function render() {
   const t = curTheme();
   const baseSeg = findSegment(player.z);
@@ -541,12 +721,25 @@ function render() {
 
   ctx.clearRect(0,0,W,H);
   const horizon = Math.floor(H*0.42);
+
+  // ---- camera shake (speed / boost / crash) — world only, not the HUD ----
+  let sh = 0;
+  if (state === "play" && !paused) {
+    const sp = player.speed / MAX_SPEED;
+    sh = (sp > 0.8 ? (sp-0.8)*8 : 0) + (player.boosting ? 1.4 : 0) + (crashTimer > 0 ? 3.5 : 0);
+    sh = Math.min(sh, 3);
+  }
+  const shx = sh ? Math.sin(clock*97)*sh : 0;
+  const shy = sh ? Math.cos(clock*83)*sh*0.5 : 0;
+  ctx.save();
+  ctx.translate(shx, shy);
+
   drawSky(t, horizon);
   drawHills(t, horizon);
 
   // grass base
   ctx.fillStyle = t.grassD;
-  ctx.fillRect(0, horizon, W, H-horizon);
+  ctx.fillRect(-8, horizon, W+16, H-horizon+8);
 
   let x = 0, dx = -(baseSeg.curve * basePercent);
   let maxY = H;
@@ -572,7 +765,7 @@ function render() {
 
     // grass slab
     ctx.fillStyle = grass;
-    ctx.fillRect(0, p2.y, W, p1.y - p2.y + 1);
+    ctx.fillRect(-8, p2.y, W+16, p1.y - p2.y + 1);
 
     // rumble strips
     rectPoly(p1.x, p1.y, p1.w*1.15, p2.x, p2.y, p2.w*1.15, rumble);
@@ -593,7 +786,7 @@ function render() {
     if (fog > 0.015) {
       ctx.globalAlpha = Math.min(0.92, fog);
       ctx.fillStyle = t.fog;
-      ctx.fillRect(0, p2.y, W, (p1.y - p2.y) + 1);
+      ctx.fillRect(-8, p2.y, W+16, (p1.y - p2.y) + 1);
       ctx.globalAlpha = 1;
     }
     maxY = p2.y;
@@ -624,8 +817,17 @@ function render() {
   // weather overlays
   drawWeather(t, horizon);
 
+  // NFS speed streaks (behind the car)
+  drawSpeedFX();
+
   // player car (hidden on the attract menu)
   if (state !== "menu") drawPlayer();
+
+  // collision sparks (in front of the car)
+  drawSparks();
+
+  // end camera-shake transform before drawing the HUD
+  ctx.restore();
 
   // HUD only while racing
   if (state === "play") drawHUD(t);
@@ -694,6 +896,21 @@ function drawPlayer() {
   // shadow
   ctx.fillStyle = "rgba(0,0,0,0.35)";
   ctx.beginPath(); ctx.ellipse(cx, cy+15, w*0.55, 6, 0, 0, Math.PI*2); ctx.fill();
+
+  // nitro exhaust flames (drawn behind/under the car)
+  if (player.boosting && state === "play") {
+    for (const bx of [x+15, x+w-15]) {
+      const fl = 10 + Math.abs(Math.sin(clock*38 + bx))*12;
+      const fg = ctx.createLinearGradient(0, y+h-2, 0, y+h-2+fl);
+      fg.addColorStop(0, "rgba(255,255,255,0.95)");
+      fg.addColorStop(0.35, "rgba(130,190,255,0.9)");
+      fg.addColorStop(1, "rgba(40,80,255,0)");
+      ctx.fillStyle = fg;
+      ctx.beginPath();
+      ctx.moveTo(bx-4, y+h-2); ctx.lineTo(bx+4, y+h-2); ctx.lineTo(bx, y+h-2+fl);
+      ctx.closePath(); ctx.fill();
+    }
+  }
 
   // rear of race car (viewed from behind)
   // main body — gouraud gradient (glossy N64 look)
@@ -832,16 +1049,53 @@ function drawHUD() {
     ctx.fillRect(102 + i*8, gy+3, 6, 8);
   }
 
-  // speedometer
-  const spd = Math.floor(player.speed / MAX_SPEED * 260);
-  px(`${spd}`, W-4, H-20, 14, "#ffffff", "right");
-  px("KM/H", W-4, H-8, 7, "#8ad0ff", "right");
-  // speed bar
-  const bw = 60;
-  ctx.fillStyle = "rgba(6,8,24,0.55)";
-  ctx.fillRect(W-4-bw, H-24, bw, 3);
-  ctx.fillStyle = spd>200?"#ff5a4a":spd>120?"#ffd24a":"#5affa0";
-  ctx.fillRect(W-4-bw, H-24, bw*(player.speed/MAX_SPEED), 3);
+  // ---- circular speedometer (NFS gauge) ----
+  const gx = W-40, gy2 = H-38, gr = 30;
+  const a0 = Math.PI*0.75, a1 = Math.PI*2.25;
+  const frac = Math.min(1.15, player.speed / MAX_SPEED) / 1.15;
+  ctx.beginPath(); ctx.arc(gx, gy2, gr, 0, Math.PI*2);
+  ctx.fillStyle = "rgba(6,8,24,0.72)"; ctx.fill();
+  // background track
+  ctx.lineWidth = 4; ctx.lineCap = "round";
+  ctx.strokeStyle = "rgba(90,120,200,0.35)";
+  ctx.beginPath(); ctx.arc(gx, gy2, gr-4, a0, a1); ctx.stroke();
+  // filled arc
+  ctx.strokeStyle = player.boosting ? "#7ab8ff" : frac>0.8 ? "#ff5a4a" : frac>0.5 ? "#ffd24a" : "#5affa0";
+  ctx.beginPath(); ctx.arc(gx, gy2, gr-4, a0, a0+(a1-a0)*frac); ctx.stroke();
+  ctx.lineCap = "butt";
+  // needle
+  const na = a0 + (a1-a0)*frac;
+  ctx.strokeStyle = "#fff"; ctx.lineWidth = 2;
+  ctx.beginPath(); ctx.moveTo(gx, gy2); ctx.lineTo(gx+Math.cos(na)*(gr-7), gy2+Math.sin(na)*(gr-7)); ctx.stroke();
+  ctx.fillStyle = "#fff"; ctx.beginPath(); ctx.arc(gx, gy2, 2, 0, Math.PI*2); ctx.fill();
+  // digital speed + gear
+  const spd = Math.floor(player.speed / MAX_SPEED * 310);
+  px(`${spd}`, gx, gy2-8, 13, "#ffffff", "center");
+  px("KM/H", gx, gy2+5, 6, "#8ad0ff", "center");
+  const gear = Math.min(6, 1 + Math.floor(player.speed / MAX_SPEED * 6));
+  px("MARCHA " + gear, gx, gy2-gr-11, 8, "#ffe08a", "center");
+  if (player.boosting) px("TURBO!", gx, gy2+gr+2, 8, "#7ab8ff", "center");
+
+  // ---- nitro bar (bottom-left) ----
+  const nbw = 92, nbx = 6, nby = H-13;
+  px("NITRO", nbx, nby-11, 8, "#8ad0ff");
+  ctx.fillStyle = "rgba(6,8,24,0.6)"; ctx.fillRect(nbx, nby, nbw, 8);
+  const ngrad = ctx.createLinearGradient(nbx, 0, nbx+nbw, 0);
+  ngrad.addColorStop(0, "#2a6bff"); ngrad.addColorStop(1, "#9fe0ff");
+  ctx.fillStyle = player.boosting ? "#dff0ff" : ngrad;
+  ctx.fillRect(nbx, nby, nbw*player.nitro, 8);
+  ctx.strokeStyle = "rgba(150,190,255,0.6)"; ctx.lineWidth = 1;
+  ctx.strokeRect(nbx+0.5, nby+0.5, nbw-1, 7);
+  if (player.nitro >= 0.999) px("MAX", nbx+nbw+4, nby, 7, "#7fffb0");
+
+  // ---- overtake combo ----
+  if (combo >= 2 && comboTimer > 0) {
+    ctx.globalAlpha = Math.min(1, comboTimer);
+    px(`COMBO x${combo}`, W/2, H*0.5, 13, "#ffd24a", "center");
+    ctx.globalAlpha = 1;
+  }
+  // mute indicator
+  if (muted) px("SOM: OFF (M)", 6, 42, 7, "#9aa8dd");
 
   // pass flash
   if (flashTimer > 0) {
@@ -876,16 +1130,17 @@ function panel(title, lines, accent) {
 function drawMenu() {
   // animated title
   panel("ENDURO 2026", [
-    {t:"", s:4},
-    {t:"RACER 3D · ESTILO N64", s:10, c:"#8ad0ff"},
-    {t:"", s:6},
+    {t:"", s:3},
+    {t:"TURBO RACER · ESTILO N64", s:10, c:"#8ad0ff"},
+    {t:"", s:5},
     {t:"Ultrapasse a cota de carros de cada dia", s:8, c:"#c8d4ff"},
-    {t:"atravesse amanhecer, noite, neblina e neve", s:8, c:"#c8d4ff"},
-    {t:"", s:8},
-    {t:"CIMA = acelera   BAIXO = freia   LADOS = dirigir", s:8, c:"#9aa8dd"},
+    {t:"amanhecer, noite, neblina e neve", s:8, c:"#c8d4ff"},
     {t:"", s:6},
+    {t:"CIMA acelera · BAIXO freia · LADOS dirigem", s:8, c:"#9aa8dd"},
+    {t:"SHIFT / N²O = NITRO · M = som", s:8, c:"#7ab8ff"},
+    {t:"", s:5},
     {t: blink()? "▶ ENTER / TOQUE PARA COMEÇAR" : " ", s:10, c:"#ffe08a"},
-    {t:"", s:8},
+    {t:"", s:6},
     {t:`RECORDE: DIA ${bestDay} · ${bestScore} carros`, s:8, c:"#7fffb0"},
   ], "#ff5a4a");
 }
@@ -937,6 +1192,11 @@ function frame(now) {
   if (dt < 0) dt = 0;         // guard against non-monotonic clocks
   clock += dt;
   update(dt);
+  if (state !== "play" || paused) player.boosting = false;
+  // dynamic FOV (widens during boost) + synthesized engine audio
+  const targetDepth = (state === "play" && player.boosting) ? CAM_DEPTH*0.82 : CAM_DEPTH;
+  camDepth += (targetDepth - camDepth) * Math.min(1, dt*6);
+  updateAudio();
   // Attract mode: keep the road scrolling gently behind the menu.
   if (state === "menu") {
     player.z += player.speed * dt;
