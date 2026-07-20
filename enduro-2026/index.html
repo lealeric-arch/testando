@@ -1,0 +1,963 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+<meta name="theme-color" content="#0a0b14" />
+<title>ENDURO 2026 — N64 Style Racer</title>
+<!-- PWA: instalável no PC / celular -->
+<link rel="manifest" href="manifest.webmanifest" />
+<link rel="icon" type="image/png" href="icon-192.png" />
+<link rel="apple-touch-icon" href="icon-192.png" />
+<meta name="mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+<meta name="apple-mobile-web-app-title" content="Enduro 2026" />
+<meta name="description" content="Racer pseudo-3D estilo Nintendo 64." />
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body {
+    height: 100%;
+    background: #0a0b14;
+    color: #e8f0ff;
+    font-family: Arial, Helvetica, sans-serif;
+    overflow: hidden;
+    -webkit-user-select: none; user-select: none;
+    touch-action: none;
+  }
+  #wrap {
+    position: fixed; inset: 0;
+    display: flex; align-items: center; justify-content: center;
+    background:
+      radial-gradient(circle at 50% 35%, #1a2038 0%, #070810 72%);
+  }
+  /* Nintendo 64 look: smooth bilinear scaling, charcoal console bezel */
+  #stage {
+    position: relative;
+    image-rendering: auto;
+    box-shadow:
+      0 0 0 6px #2a2d3a, 0 0 0 9px #16171f,
+      0 0 46px rgba(80,120,255,.22), 0 22px 60px rgba(0,0,0,.65);
+    border-radius: 10px;
+    overflow: hidden;
+    background: #000;
+  }
+  canvas { display: block; image-rendering: auto; }
+  /* soft TV vignette + faint bloom (no hard scanlines — this is N64, not arcade CRT) */
+  #stage::after {
+    content: ""; position: absolute; inset: 0; pointer-events: none;
+    background: radial-gradient(ellipse at 50% 46%, rgba(0,0,0,0) 55%, rgba(0,0,0,0.28) 100%);
+  }
+  /* Touch controls */
+  #touch {
+    position: fixed; inset: 0; pointer-events: none; z-index: 20;
+    display: none;
+  }
+  .pad {
+    position: absolute; bottom: 22px;
+    width: 84px; height: 84px; border-radius: 50%;
+    background: rgba(40,60,140,.35);
+    border: 3px solid rgba(120,160,255,.6);
+    display: flex; align-items: center; justify-content: center;
+    color: #cfe0ff; font-size: 30px; font-weight: bold;
+    pointer-events: auto;
+    backdrop-filter: blur(2px);
+  }
+  .pad:active { background: rgba(90,130,255,.6); }
+  #bLeft { left: 18px; }
+  #bRight { left: 116px; }
+  #bBrake { right: 116px; background: rgba(180,50,60,.35); border-color: rgba(255,120,120,.6); }
+  #bGas   { right: 18px; background: rgba(50,180,90,.35); border-color: rgba(120,255,150,.6); }
+  @media (pointer: coarse) { #touch { display: block; } }
+  #hint {
+    position: fixed; bottom: 6px; left: 0; right: 0; text-align: center;
+    font-size: 11px; color: #6b78b5; letter-spacing: 1px; z-index: 5;
+  }
+</style>
+</head>
+<body>
+  <div id="wrap">
+    <div id="stage">
+      <canvas id="game"></canvas>
+    </div>
+  </div>
+
+  <div id="touch">
+    <div id="bLeft"  class="pad">◀</div>
+    <div id="bRight" class="pad">▶</div>
+    <div id="bBrake" class="pad">■</div>
+    <div id="bGas"   class="pad">▲</div>
+  </div>
+  <div id="hint">← → dirigir · ↑ acelerar · ↓ frear · ENTER começar · P pausar</div>
+
+<script>
+(() => {
+"use strict";
+
+// ---------------------------------------------------------------------------
+// ENDURO 2026 — pseudo-3D racer, Nintendo 64 aesthetic
+// Smooth (bilinear) rendering, gouraud-shaded cars, heavy distance fog and a
+// Mario-Kart-64-style outlined HUD. Pass the daily quota of cars to survive to
+// the next day; weather and the day/night cycle roll on as you keep racing.
+// ---------------------------------------------------------------------------
+
+const W = 384, H = 240;              // internal resolution (N64-ish, smoothed on scale)
+const cv = document.getElementById("game");
+const ctx = cv.getContext("2d");
+cv.width = W; cv.height = H;
+
+// Crisp scale-to-fit
+function resize() {
+  const pad = 24;
+  const availW = window.innerWidth - pad;
+  const availH = window.innerHeight - pad;
+  let scale = Math.max(1, Math.floor(Math.min(availW / W, availH / H)));
+  const stage = document.getElementById("stage");
+  stage.style.width  = (W * scale) + "px";
+  stage.style.height = (H * scale) + "px";
+  cv.style.width  = (W * scale) + "px";
+  cv.style.height = (H * scale) + "px";
+}
+window.addEventListener("resize", resize);
+resize();
+
+// ---- Road / render constants -------------------------------------------------
+const SEG_LEN     = 200;             // length of a single road segment (world units)
+const ROAD_WIDTH  = 1000;            // half-width of road
+const RUMBLE_LEN  = 3;               // segments per rumble stripe
+const CAM_HEIGHT  = 1000;
+const CAM_DEPTH   = 0.84;            // ~ 1 / tan(fov/2)
+const DRAW_DIST   = 160;             // segments rendered ahead
+const LANES       = 3;
+const CENTRIFUGAL = 0.3;
+
+const MAX_SPEED   = SEG_LEN * 60;    // top speed (units/sec)
+const ACCEL       = MAX_SPEED / 5.5;
+const BRAKE       = -MAX_SPEED / 2.2;
+const DECEL       = -MAX_SPEED / 5;
+const OFFROAD_DEC = -MAX_SPEED / 2.4;
+const OFFROAD_CAP = MAX_SPEED / 4;
+const CRASH_SPEED = MAX_SPEED / 5;   // speed you drop to after hitting a car
+
+// ---- Colors (16-bit palette per theme) --------------------------------------
+// Each day-phase has its own sky / grass / road / rumble palette.
+const THEMES = {
+  dawn:  { sky:["#3a2a5e","#c8657a","#f2a65a"], grassL:"#3f7a4a", grassD:"#356a40",
+           roadL:"#5a5a66", roadD:"#525260", rumbleL:"#e8e8f0", rumbleD:"#b03040",
+           lane:"#e8e8f0", fog:"#c8657a", tunnel:false, name:"AMANHECER" },
+  day:   { sky:["#4aa6e8","#7cc3f2","#bfe6ff"], grassL:"#4caf50", grassD:"#3f9142",
+           roadL:"#606070", roadD:"#585868", rumbleL:"#ffffff", rumbleD:"#d02030",
+           lane:"#ffffff", fog:"#bfe6ff", tunnel:false, name:"DIA" },
+  dusk:  { sky:["#243b6b","#7a4a8e","#e07a3a"], grassL:"#3a6b52","grassD":"#316148",
+           roadL:"#565664", roadD:"#4e4e5c", rumbleL:"#f0e0d0", rumbleD:"#c03040",
+           lane:"#f0e0d0", fog:"#7a4a8e", tunnel:false, name:"ENTARDECER" },
+  night: { sky:["#05061a","#0a0e30","#141a4a"], grassL:"#183a2a","grassD":"#123020",
+           roadL:"#33333f", roadD:"#2b2b38", rumbleL:"#c0c0d8", rumbleD:"#803040",
+           lane:"#a0a0c0", fog:"#0a0e30", tunnel:false, name:"NOITE" },
+  fog:   { sky:["#8a94a8","#a6b0c0","#c4ccd8"], grassL:"#5a7a5e","grassD":"#4e6e52",
+           roadL:"#6a6a76","roadD":"#62626e", rumbleL:"#e0e4ec", rumbleD:"#a05058",
+           lane:"#e0e4ec", fog:"#b4bcca", tunnel:false, name:"NEBLINA" },
+  snow:  { sky:["#96a2c0","#b4c0dc","#d6e0f0"], grassL:"#d8e2f0","grassD":"#c6d2e6",
+           roadL:"#7a7a88","roadD":"#72727e", rumbleL:"#ffffff", rumbleD:"#d02030",
+           lane:"#ffffff", fog:"#d6e0f0", tunnel:false, name:"NEVE" },
+};
+// Sequence of phases that cycle each day.
+const PHASE_ORDER = ["dawn","day","dusk","night","fog","snow"];
+
+// ---- Input -------------------------------------------------------------------
+const keys = {};
+const K = { left:false, right:false, gas:false, brake:false };
+function setKey(e, down) {
+  const c = e.code;
+  if (c === "ArrowLeft"  || c === "KeyA") K.left  = down;
+  else if (c === "ArrowRight" || c === "KeyD") K.right = down;
+  else if (c === "ArrowUp"   || c === "KeyW") K.gas   = down;
+  else if (c === "ArrowDown" || c === "KeyS") K.brake = down;
+  else return;
+  e.preventDefault();
+}
+addEventListener("keydown", e => {
+  if (e.repeat) { setKey(e, true); return; }
+  if (e.code === "Enter" || e.code === "Space") {
+    if (state === "menu" || state === "gameover") startGame();
+    else if (state === "dayclear") nextDay();
+    e.preventDefault();
+  }
+  if (e.code === "KeyP" && state === "play") { paused = !paused; e.preventDefault(); }
+  setKey(e, true);
+});
+addEventListener("keyup", e => setKey(e, false));
+
+function bindPad(id, prop) {
+  const el = document.getElementById(id);
+  const on  = e => { K[prop] = true;  e.preventDefault(); };
+  const off = e => { K[prop] = false; e.preventDefault(); };
+  el.addEventListener("touchstart", on,  {passive:false});
+  el.addEventListener("touchend",   off, {passive:false});
+  el.addEventListener("touchcancel",off, {passive:false});
+  el.addEventListener("mousedown",  on);
+  el.addEventListener("mouseup",    off);
+  el.addEventListener("mouseleave", off);
+}
+bindPad("bLeft","left"); bindPad("bRight","right");
+bindPad("bGas","gas");   bindPad("bBrake","brake");
+// Tap anywhere to advance on menus (mobile)
+cv.addEventListener("touchstart", e => {
+  if (state === "menu" || state === "gameover") { startGame(); e.preventDefault(); }
+  else if (state === "dayclear") { nextDay(); e.preventDefault(); }
+}, {passive:false});
+
+// ---- Game state --------------------------------------------------------------
+let state = "menu";     // menu | play | dayclear | gameover
+let paused = false;
+let segments = [];
+let trackLength = 0;
+
+let player = {
+  x: 0,           // -1..1 position across road
+  z: 0,           // world position along track
+  speed: 0,
+};
+let day = 1;
+let carsToPass = 0;
+let carsPassed = 0;
+let totalPassed = 0;
+let distance = 0;         // meters this day
+let phaseTime = 0;        // seconds into current phase
+let phaseIdx = 1;         // start at "day"
+let cars = [];            // rival cars
+let crashTimer = 0;       // wobble after collision
+let steerShake = 0;
+let flashTimer = 0;       // "PASSOU!" flash
+let bestDay = Number(localStorage.getItem("enduro2026_bestDay") || 1);
+let bestScore = Number(localStorage.getItem("enduro2026_bestScore") || 0);
+
+const PHASE_DURATION = 26;    // seconds per weather/light phase
+
+// ---- Track building ----------------------------------------------------------
+function lastY() { return segments.length === 0 ? 0 : segments[segments.length-1].p2.world.y; }
+
+function addSegment(curve, y) {
+  const n = segments.length;
+  segments.push({
+    index: n,
+    p1: { world:{ y: lastY(), z: n*SEG_LEN }, cam:{}, screen:{} },
+    p2: { world:{ y: y,       z: (n+1)*SEG_LEN }, cam:{}, screen:{} },
+    curve: curve,
+    cars: [],
+    color: Math.floor(n / RUMBLE_LEN) % 2,
+  });
+}
+function addRoad(enter, hold, leave, curve, y) {
+  const startY = lastY();
+  const endY = startY + y * SEG_LEN;
+  const total = enter + hold + leave;
+  for (let i = 0; i < enter; i++) addSegment(easeIn(0,curve,i/enter),   easeInOut(startY,endY,i/total));
+  for (let i = 0; i < hold;  i++) addSegment(curve,                     easeInOut(startY,endY,(enter+i)/total));
+  for (let i = 0; i < leave; i++) addSegment(easeInOut(curve,0,i/leave),easeInOut(startY,endY,(enter+hold+i)/total));
+}
+function easeIn(a,b,p){ return a + (b-a)*Math.pow(p,2); }
+function easeInOut(a,b,p){ return a + (b-a)*((-Math.cos(p*Math.PI)/2)+0.5); }
+
+// Deterministic-ish PRNG so each day feels distinct but replayable-ish
+let rngSeed = 1;
+function rnd(){ rngSeed = (rngSeed*9301+49297)%233280; return rngSeed/233280; }
+
+function buildTrack(seed) {
+  segments = [];
+  rngSeed = seed;
+  const ROAD = { LENGTH:{NONE:0,SHORT:25,MEDIUM:50,LONG:100},
+                 CURVE:{NONE:0,EASY:2,MEDIUM:4,HARD:6},
+                 HILL:{NONE:0,LOW:20,MEDIUM:40,HIGH:60} };
+  addRoad(30,30,30,0,0);                                  // starting straight
+  const pieces = 22 + day*2;
+  for (let i = 0; i < pieces; i++) {
+    const r = rnd();
+    const len   = [25,50,100][Math.floor(rnd()*3)];
+    const curve = (rnd()<0.5?-1:1) * [0,2,4,6][Math.floor(rnd()*4)];
+    const hill  = (rnd()<0.5?-1:1) * [0,20,40,60][Math.floor(rnd()*4)];
+    addRoad(len*0.4|0, len, len*0.4|0, curve, hill);
+  }
+  addRoad(30,30,30,0,0);
+  trackLength = segments.length * SEG_LEN;
+}
+
+function findSegment(z) {
+  let i = Math.floor(z / SEG_LEN) % segments.length;
+  if (i < 0) i += segments.length;
+  return segments[i];
+}
+
+// ---- Rival cars --------------------------------------------------------------
+const CAR_COLORS = ["#e03a3a","#3a7ae0","#f2c14e","#8a4ae0","#2ec4a6","#e07a2a","#d0d0e0"];
+function resetCars() {
+  cars = [];
+  const count = 14 + day * 3;
+  for (let i = 0; i < count; i++) {
+    const seg = Math.floor(rnd() * segments.length);
+    cars.push({
+      offset: (rnd()*2 - 1) * 0.7,           // lane position
+      z: seg * SEG_LEN + rnd()*SEG_LEN,
+      speed: MAX_SPEED * (0.28 + rnd()*0.30), // slower than the player at full tilt
+      color: CAR_COLORS[Math.floor(rnd()*CAR_COLORS.length)],
+      passed: false,
+      w: 0.9 + rnd()*0.25,
+    });
+  }
+  cars.sort((a,b)=>a.z-b.z);
+}
+
+// ---- Start / progression -----------------------------------------------------
+function startGame() {
+  day = 1; totalPassed = 0;
+  beginDay();
+  state = "play"; paused = false;
+}
+function beginDay() {
+  buildTrack(1000 + day*137);
+  resetCars();
+  player.x = 0; player.z = 0; player.speed = 0;
+  carsToPass = 5 + Math.floor(day * 4.5);   // rising quota
+  carsPassed = 0;
+  distance = 0;
+  phaseTime = 0;
+  phaseIdx = (day - 1) % PHASE_ORDER.length;
+  crashTimer = 0; flashTimer = 0; steerShake = 0;
+}
+function nextDay() {
+  day++;
+  beginDay();
+  state = "play"; paused = false;
+}
+function dayCleared() {
+  state = "dayclear";
+  if (day > bestDay) { bestDay = day; localStorage.setItem("enduro2026_bestDay", bestDay); }
+  if (totalPassed > bestScore) { bestScore = totalPassed; localStorage.setItem("enduro2026_bestScore", bestScore); }
+}
+function gameOver() {
+  state = "gameover";
+  if (totalPassed > bestScore) { bestScore = totalPassed; localStorage.setItem("enduro2026_bestScore", bestScore); }
+  if (day > bestDay) { bestDay = day; localStorage.setItem("enduro2026_bestDay", bestDay); }
+}
+
+function curTheme() { return THEMES[PHASE_ORDER[phaseIdx]]; }
+
+// ---- Update ------------------------------------------------------------------
+function update(dt) {
+  if (state !== "play" || paused) return;
+
+  const startPos = player.z;
+  const seg = findSegment(player.z);
+  const speedPct = player.speed / MAX_SPEED;
+
+  // steering
+  const dx = dt * 2 * speedPct;
+  if (K.left)  { player.x -= dx; steerShake = -1; }
+  else if (K.right) { player.x += dx; steerShake = 1; }
+  else steerShake *= 0.8;
+
+  // centrifugal push in curves
+  player.x -= dx * speedPct * seg.curve * CENTRIFUGAL;
+
+  // accel / brake
+  if (K.gas)        player.speed += ACCEL * dt;
+  else if (K.brake) player.speed += BRAKE * dt;
+  else              player.speed += DECEL * dt;
+
+  // offroad
+  const offroad = Math.abs(player.x) > 1;
+  if (offroad) {
+    if (player.speed > OFFROAD_CAP) player.speed += OFFROAD_DEC * dt;
+    steerShake = Math.sin(player.z*0.05); // rumble
+  }
+
+  player.speed = Math.max(0, Math.min(player.speed, MAX_SPEED));
+  player.x = Math.max(-2, Math.min(2, player.x));
+
+  // crash recovery slowdown wobble
+  if (crashTimer > 0) crashTimer -= dt;
+
+  // advance
+  player.z += player.speed * dt;
+  while (player.z >= trackLength) player.z -= trackLength;
+  distance += player.speed * dt / SEG_LEN;   // approx meters
+
+  // move rival cars & check overtakes / collisions
+  const playerW = 0.9;
+  for (const c of cars) {
+    const before = c.z;
+    c.z += c.speed * dt;
+    if (c.z >= trackLength) c.z -= trackLength;
+
+    // relative position for collision test — use looped distance
+    let rel = c.z - player.z;
+    if (rel > trackLength/2)  rel -= trackLength;
+    if (rel < -trackLength/2) rel += trackLength;
+
+    // collision: overlapping in z and lane
+    if (Math.abs(rel) < SEG_LEN*1.2 && player.speed > c.speed) {
+      if (Math.abs(player.x - c.offset) < (playerW + c.w)*0.5) {
+        // hit!
+        if (crashTimer <= 0) {
+          player.speed = Math.min(player.speed, CRASH_SPEED);
+          crashTimer = 0.6;
+          steerShake = (player.x < c.offset ? -3 : 3);
+          // nudge player aside
+          player.x += (player.x < c.offset ? -0.3 : 0.3);
+        }
+      }
+    }
+
+    // overtake detection: player crosses a car from behind
+    if (!c.passed) {
+      // player position increases; if we were behind and now ahead
+      if (rel < 0 && rel > -SEG_LEN*3 && player.speed > c.speed) {
+        // count as passed when it slips behind us
+      }
+    }
+  }
+
+  // Passing detection: recount cars now behind us that were ahead.
+  // Simpler robust approach: track each car's "aheadness".
+  for (const c of cars) {
+    let rel = c.z - player.z;
+    if (rel > trackLength/2)  rel -= trackLength;
+    if (rel < -trackLength/2) rel += trackLength;
+    const nowBehind = rel < 0;
+    if (c._wasAhead === undefined) c._wasAhead = rel > 0;
+    if (c._wasAhead && nowBehind && rel > -SEG_LEN*6) {
+      // passed it
+      if (!c.passed) {
+        c.passed = true;
+        carsPassed++; totalPassed++;
+        flashTimer = 0.9;
+        if (carsPassed >= carsToPass) { dayCleared(); return; }
+      }
+    }
+    if (!nowBehind) { c._wasAhead = true; c.passed = false; }
+    else c._wasAhead = false;
+  }
+
+  // phase / weather cycle
+  phaseTime += dt;
+  if (phaseTime >= PHASE_DURATION) {
+    phaseTime = 0;
+    phaseIdx = (phaseIdx + 1) % PHASE_ORDER.length;
+  }
+
+  if (flashTimer > 0) flashTimer -= dt;
+
+  // Enduro-style fail: you never "die" by crashing, but if you can't meet the
+  // quota you eventually run out of track-days. Here: crashing repeatedly and
+  // running the full loop without meeting quota ends the day as a fail.
+  if (distance > (segments.length * 1.6) && carsPassed < carsToPass) {
+    gameOver();
+  }
+}
+
+// ---- Rendering ---------------------------------------------------------------
+function project(p, camX, camY, camZ) {
+  p.cam.x = (p.world.x || 0) - camX;
+  p.cam.y = (p.world.y || 0) - camY;
+  p.cam.z = (p.world.z || 0) - camZ;
+  const scale = CAM_DEPTH / (p.cam.z || 0.0001);
+  p.screen.scale = scale;
+  p.screen.x = Math.round(W/2 + scale * p.cam.x * W/2);
+  p.screen.y = Math.round(H/2 - scale * p.cam.y * H/2);
+  p.screen.w = Math.round(scale * ROAD_WIDTH * W/2);
+}
+
+function rectPoly(x1,y1,w1,x2,y2,w2,color) {
+  ctx.fillStyle = color;
+  ctx.beginPath();
+  ctx.moveTo(x1-w1, y1);
+  ctx.lineTo(x1+w1, y1);
+  ctx.lineTo(x2+w2, y2);
+  ctx.lineTo(x2-w2, y2);
+  ctx.closePath();
+  ctx.fill();
+}
+
+function drawSky(t, horizon) {
+  const g = ctx.createLinearGradient(0,0,0,horizon+20);
+  g.addColorStop(0, t.sky[0]);
+  g.addColorStop(0.55, t.sky[1]);
+  g.addColorStop(1, t.sky[2]);
+  ctx.fillStyle = g;
+  ctx.fillRect(0,0,W,horizon+20);
+
+  // sun / moon
+  const phase = PHASE_ORDER[phaseIdx];
+  if (phase === "night") {
+    ctx.fillStyle = "#f4f4ff";
+    ctx.beginPath(); ctx.arc(240, 42, 12, 0, Math.PI*2); ctx.fill();
+    ctx.fillStyle = t.sky[1];
+    ctx.beginPath(); ctx.arc(236, 40, 11, 0, Math.PI*2); ctx.fill();
+    // stars
+    ctx.fillStyle = "rgba(255,255,255,0.8)";
+    for (let i=0;i<40;i++){
+      const sx=(i*73)%W, sy=(i*31)%(horizon-10);
+      if ((i*7)%3===0) ctx.fillRect(sx,sy,1,1);
+    }
+  } else if (phase === "day" || phase==="dawn" || phase==="dusk") {
+    ctx.fillStyle = phase==="day" ? "#fff7d0" : "#ffd28a";
+    ctx.beginPath(); ctx.arc(phase==="dawn"?70:phase==="dusk"?250:160, 46, 16, 0, Math.PI*2); ctx.fill();
+    ctx.fillStyle = "rgba(255,255,255,0.25)";
+    ctx.beginPath(); ctx.arc(phase==="dawn"?70:phase==="dusk"?250:160, 46, 24, 0, Math.PI*2); ctx.fill();
+  }
+}
+
+// simple layered hills on the horizon
+function drawHills(t, horizon) {
+  const base = horizon;
+  ctx.fillStyle = shade(t.grassD, -18);
+  ctx.beginPath(); ctx.moveTo(0, base);
+  for (let x=0;x<=W;x+=16){
+    const y = base - 8 - Math.sin((x*0.03)+day)*6 - Math.sin(x*0.11)*3;
+    ctx.lineTo(x, y);
+  }
+  ctx.lineTo(W, base); ctx.closePath(); ctx.fill();
+}
+
+function shade(hex, amt) {
+  const n = parseInt(hex.slice(1),16);
+  let r=(n>>16)&255, g=(n>>8)&255, b=n&255;
+  r=Math.max(0,Math.min(255,r+amt)); g=Math.max(0,Math.min(255,g+amt)); b=Math.max(0,Math.min(255,b+amt));
+  return `rgb(${r},${g},${b})`;
+}
+function hexA(hex, a) {
+  const n = parseInt(hex.slice(1),16);
+  return `rgba(${(n>>16)&255},${(n>>8)&255},${n&255},${a})`;
+}
+
+function render() {
+  const t = curTheme();
+  const baseSeg = findSegment(player.z);
+  const basePercent = (player.z % SEG_LEN) / SEG_LEN;
+  const playerY = baseSeg.p1.world.y + (baseSeg.p2.world.y - baseSeg.p1.world.y) * basePercent;
+  const camX = player.x * ROAD_WIDTH;
+  const camY = CAM_HEIGHT + playerY;
+  const camZ = player.z;
+
+  ctx.clearRect(0,0,W,H);
+  const horizon = Math.floor(H*0.42);
+  drawSky(t, horizon);
+  drawHills(t, horizon);
+
+  // grass base
+  ctx.fillStyle = t.grassD;
+  ctx.fillRect(0, horizon, W, H-horizon);
+
+  let x = 0, dx = -(baseSeg.curve * basePercent);
+  let maxY = H;
+
+  for (let n = 0; n < DRAW_DIST; n++) {
+    const seg = segments[(baseSeg.index + n) % segments.length];
+    const looped = seg.index < baseSeg.index;
+    const camZseg = camZ - (looped ? trackLength : 0);
+
+    project(seg.p1, camX - x,          camY, camZseg);
+    project(seg.p2, camX - x - dx,     camY, camZseg);
+    x  += dx;
+    dx += seg.curve;
+
+    if (seg.p1.cam.z <= CAM_DEPTH || seg.p2.screen.y >= maxY) continue;
+    if (seg.p2.screen.y >= seg.p1.screen.y) continue;
+
+    const p1 = seg.p1.screen, p2 = seg.p2.screen;
+    const dark = seg.color === 0;
+    const grass  = dark ? t.grassD  : t.grassL;
+    const rumble = dark ? t.rumbleD : t.rumbleL;
+    const road   = dark ? t.roadD   : t.roadL;
+
+    // grass slab
+    ctx.fillStyle = grass;
+    ctx.fillRect(0, p2.y, W, p1.y - p2.y + 1);
+
+    // rumble strips
+    rectPoly(p1.x, p1.y, p1.w*1.15, p2.x, p2.y, p2.w*1.15, rumble);
+    // road
+    rectPoly(p1.x, p1.y, p1.w, p2.x, p2.y, p2.w, road);
+    // lane markers on light segments
+    if (!dark) {
+      const lw1 = p1.w*0.04, lw2 = p2.w*0.04;
+      for (let l=1; l<LANES; l++){
+        const lx1 = p1.x - p1.w + (2*p1.w) * (l/LANES);
+        const lx2 = p2.x - p2.w + (2*p2.w) * (l/LANES);
+        rectPoly(lx1, p1.y, lw1, lx2, p2.y, lw2, t.lane);
+      }
+    }
+
+    // ---- N64 distance fog: fade each slab into the haze with depth ----
+    const fog = Math.pow(n / DRAW_DIST, 1.7);
+    if (fog > 0.015) {
+      ctx.globalAlpha = Math.min(0.92, fog);
+      ctx.fillStyle = t.fog;
+      ctx.fillRect(0, p2.y, W, (p1.y - p2.y) + 1);
+      ctx.globalAlpha = 1;
+    }
+    maxY = p2.y;
+  }
+
+  // draw rival cars (far to near)
+  const near = [];
+  for (const c of cars) {
+    let rel = c.z - player.z;
+    if (rel > trackLength/2)  rel -= trackLength;
+    if (rel < -trackLength/2) rel += trackLength;
+    if (rel > 0 && rel < DRAW_DIST*SEG_LEN) near.push({c, rel});
+  }
+  near.sort((a,b)=>b.rel-a.rel);
+  for (const {c, rel} of near) {
+    const segIdx = Math.floor(c.z / SEG_LEN) % segments.length;
+    const seg = segments[segIdx];
+    // approximate screen projection using segment scale
+    const p = { world:{x:c.offset*ROAD_WIDTH, y:seg.p1.world.y, z:c.z}, cam:{}, screen:{} };
+    let cz = c.z; if (cz < player.z) cz += trackLength;
+    project(p, camX, camY, camZ);
+    if (p.screen.scale <= 0) continue;
+    // fade the car into the distance fog
+    const fog = Math.pow(rel / (DRAW_DIST*SEG_LEN), 1.6);
+    drawCar(p.screen.x, p.screen.y, p.screen.scale, c.color, Math.min(0.9, fog), t.fog);
+  }
+
+  // weather overlays
+  drawWeather(t, horizon);
+
+  // player car (hidden on the attract menu)
+  if (state !== "menu") drawPlayer();
+
+  // HUD only while racing
+  if (state === "play") drawHUD(t);
+
+  // menus / overlays
+  if (state === "menu")      drawMenu();
+  else if (state === "dayclear") drawDayClear();
+  else if (state === "gameover") drawGameOver();
+  else if (paused)           drawPaused();
+}
+
+function drawCar(sx, sy, scale, color, fog, fogColor) {
+  const w = Math.max(6, scale * ROAD_WIDTH * W/2 * 0.28);
+  const h = w * 0.62;
+  const x = sx - w/2, y = sy - h;
+  if (w < 3) return;
+  // soft contact shadow
+  ctx.fillStyle = "rgba(0,0,0,0.28)";
+  ctx.beginPath(); ctx.ellipse(sx, sy, w*0.55, 3, 0, 0, Math.PI*2); ctx.fill();
+  // gouraud-shaded body (highlight on top, shade at base) — N64 vertex lighting
+  const g = ctx.createLinearGradient(0, y, 0, y+h);
+  g.addColorStop(0, shade(color, 55));
+  g.addColorStop(0.5, color);
+  g.addColorStop(1, shade(color, -45));
+  ctx.fillStyle = g;
+  roundRect(x, y, w, h, Math.max(1, w*0.12)); ctx.fill();
+  // cabin
+  ctx.fillStyle = shade(color, -55);
+  ctx.fillRect(x+w*0.18, y+h*0.12, w*0.64, h*0.4);
+  // rear window glare
+  const gg = ctx.createLinearGradient(0, y+h*0.16, 0, y+h*0.38);
+  gg.addColorStop(0, "rgba(220,240,255,0.85)");
+  gg.addColorStop(1, "rgba(120,170,220,0.4)");
+  ctx.fillStyle = gg;
+  ctx.fillRect(x+w*0.24, y+h*0.16, w*0.52, h*0.22);
+  // tail lights
+  ctx.fillStyle = "#ff5a4a";
+  ctx.fillRect(x+2, y+h*0.62, w*0.16, h*0.22);
+  ctx.fillRect(x+w-2-w*0.16, y+h*0.62, w*0.16, h*0.22);
+  // distance fog blend
+  if (fog && fog > 0.02) {
+    ctx.globalAlpha = fog;
+    ctx.fillStyle = fogColor || "#ffffff";
+    roundRect(x, y, w, h, Math.max(1, w*0.12)); ctx.fill();
+    ctx.globalAlpha = 1;
+  }
+}
+function roundRect(x, y, w, h, r) {
+  ctx.beginPath();
+  ctx.moveTo(x+r, y);
+  ctx.arcTo(x+w, y,   x+w, y+h, r);
+  ctx.arcTo(x+w, y+h, x,   y+h, r);
+  ctx.arcTo(x,   y+h, x,   y,   r);
+  ctx.arcTo(x,   y,   x+w, y,   r);
+  ctx.closePath();
+}
+
+function drawPlayer() {
+  const bob = state==="play" ? Math.sin(player.z*0.05)*(player.speed/MAX_SPEED) : 0;
+  const shake = (crashTimer>0 ? (Math.random()-0.5)*4 : 0) + steerShake*2;
+  const cx = W/2 + shake;
+  const cy = H - 34 + bob;
+  const w = 56, h = 30;
+  const x = cx - w/2, y = cy - h/2;
+
+  // shadow
+  ctx.fillStyle = "rgba(0,0,0,0.35)";
+  ctx.beginPath(); ctx.ellipse(cx, cy+15, w*0.55, 6, 0, 0, Math.PI*2); ctx.fill();
+
+  // rear of race car (viewed from behind)
+  // main body — gouraud gradient (glossy N64 look)
+  const bg = ctx.createLinearGradient(0, y+6, 0, y+h-2);
+  bg.addColorStop(0, "#ff6a5c");
+  bg.addColorStop(0.45, "#e8322c");
+  bg.addColorStop(1, "#9c1712");
+  ctx.fillStyle = bg;
+  ctx.fillRect(x+4, y+6, w-8, h-8);
+  // spoiler
+  ctx.fillStyle = "#20242e";
+  ctx.fillRect(x, y+2, w, 5);
+  ctx.fillRect(x+6, y, 4, 7);
+  ctx.fillRect(x+w-10, y, 4, 7);
+  // cockpit
+  ctx.fillStyle = "#1a1d26";
+  ctx.fillRect(x+w/2-8, y+8, 16, 10);
+  ctx.fillStyle = "rgba(120,180,255,0.5)";
+  ctx.fillRect(x+w/2-6, y+9, 12, 5);
+  // number
+  ctx.fillStyle = "#fff";
+  ctx.fillRect(x+w/2-1, y+9, 2, 5);
+  // wheels
+  ctx.fillStyle = "#111";
+  ctx.fillRect(x, y+h-9, 10, 11);
+  ctx.fillRect(x+w-10, y+h-9, 10, 11);
+  ctx.fillStyle = "#333";
+  ctx.fillRect(x+2, y+h-6, 6, 5);
+  ctx.fillRect(x+w-8, y+h-6, 6, 5);
+  // brake glow
+  if (K.brake && state==="play") {
+    ctx.fillStyle = "rgba(255,60,40,0.9)";
+    ctx.fillRect(x+6, y+h-4, 8, 3);
+    ctx.fillRect(x+w-14, y+h-4, 8, 3);
+  }
+  // outline
+  ctx.strokeStyle = "rgba(0,0,0,0.4)"; ctx.lineWidth=1;
+  ctx.strokeRect(x+4.5, y+6.5, w-9, h-9);
+}
+
+let rainDrops = [], snowFlakes = [];
+function initParticles() {
+  rainDrops = []; snowFlakes = [];
+  for (let i=0;i<60;i++) rainDrops.push({x:Math.random()*W, y:Math.random()*H, s:2+Math.random()*3});
+  for (let i=0;i<70;i++) snowFlakes.push({x:Math.random()*W, y:Math.random()*H, s:0.4+Math.random()*0.9, d:Math.random()*Math.PI*2});
+}
+initParticles();
+
+function drawWeather(t, horizon) {
+  const phase = PHASE_ORDER[phaseIdx];
+  const spd = state==="play" && !paused ? (0.3 + player.speed/MAX_SPEED) : 0.4;
+
+  // Always-on horizon haze — the road emerges from the fog (N64 signature)
+  const haze = ctx.createLinearGradient(0, horizon-12, 0, horizon+46);
+  haze.addColorStop(0, hexA(t.fog, 0.85));
+  haze.addColorStop(1, hexA(t.fog, 0));
+  ctx.fillStyle = haze;
+  ctx.fillRect(0, horizon-12, W, 60);
+
+  if (phase === "fog") {
+    // fade distant road into fog
+    const g = ctx.createLinearGradient(0, horizon-6, 0, horizon+60);
+    g.addColorStop(0, "rgba(180,188,202,0.95)");
+    g.addColorStop(1, "rgba(180,188,202,0)");
+    ctx.fillStyle = g;
+    ctx.fillRect(0, horizon-6, W, 70);
+    ctx.fillStyle = "rgba(180,188,202,0.18)";
+    ctx.fillRect(0,0,W,H);
+  }
+  if (phase === "snow") {
+    ctx.fillStyle = "rgba(255,255,255,0.9)";
+    for (const f of snowFlakes) {
+      ctx.fillRect(f.x|0, f.y|0, 1+ (f.s>0.9?1:0), 1+(f.s>0.9?1:0));
+      f.y += f.s * (1+spd);
+      f.x += Math.sin(f.d + f.y*0.05)*0.6;
+      if (f.y > H) { f.y = -2; f.x = Math.random()*W; }
+    }
+    ctx.fillStyle = "rgba(210,224,240,0.12)";
+    ctx.fillRect(0,0,W,H);
+  }
+  if (phase === "dusk" || phase === "night") {
+    // vignette darkening
+    const g = ctx.createRadialGradient(W/2,H*0.6,40,W/2,H*0.6,W*0.7);
+    g.addColorStop(0,"rgba(0,0,10,0)");
+    g.addColorStop(1, phase==="night"?"rgba(0,0,10,0.55)":"rgba(20,0,30,0.3)");
+    ctx.fillStyle = g;
+    ctx.fillRect(0,0,W,H);
+    // headlight cones at night
+    if (phase === "night") {
+      ctx.fillStyle = "rgba(255,250,210,0.06)";
+      ctx.beginPath();
+      ctx.moveTo(W/2-10, H-40); ctx.lineTo(W/2-70, horizon+20);
+      ctx.lineTo(W/2+70, horizon+20); ctx.lineTo(W/2+10, H-40);
+      ctx.closePath(); ctx.fill();
+    }
+  }
+}
+
+// ---- HUD ---------------------------------------------------------------------
+function px(text, x, y, size, color, align) {
+  ctx.font = `800 ${size}px Arial, "Arial Black", sans-serif`;
+  ctx.textAlign = align || "left";
+  ctx.textBaseline = "top";
+  ctx.lineJoin = "round";
+  ctx.miterLimit = 2;
+  // thick dark outline — the N64 / Mario Kart 64 HUD look
+  ctx.lineWidth = Math.max(2, size * 0.32);
+  ctx.strokeStyle = "rgba(0,0,0,0.9)";
+  ctx.strokeText(text, x, y);
+  ctx.fillStyle = color;
+  ctx.fillText(text, x, y);
+}
+
+function drawHUD() {
+  // top strip
+  ctx.fillStyle = "rgba(6,8,24,0.72)";
+  ctx.fillRect(0,0,W,20);
+  ctx.fillStyle = "rgba(90,120,255,0.5)";
+  ctx.fillRect(0,20,W,1);
+
+  px(`DIA ${day}`, 4, 5, 9, "#8ad0ff");
+  px(PHASE_ORDER[phaseIdx] ? curTheme().name : "", W/2, 5, 8, "#c8d4ff", "center");
+  px(`SCORE ${totalPassed}`, W-4, 5, 9, "#ffe08a", "right");
+
+  // "cars to pass" gauge (Enduro signature)
+  const remain = Math.max(0, carsToPass - carsPassed);
+  const gy = 24;
+  ctx.fillStyle = "rgba(6,8,24,0.55)";
+  ctx.fillRect(4, gy, 96, 14);
+  px(remain > 0 ? `FALTAM ${remain}` : "COMPLETO!", 8, gy+3, 8, remain>0?"#ff9a6a":"#7fffb0");
+  // little car icons
+  const total = carsToPass;
+  const shown = Math.min(total, 12);
+  for (let i=0;i<shown;i++){
+    ctx.fillStyle = i < carsPassed ? "#7fffb0" : "#455";
+    ctx.fillRect(102 + i*8, gy+3, 6, 8);
+  }
+
+  // speedometer
+  const spd = Math.floor(player.speed / MAX_SPEED * 260);
+  px(`${spd}`, W-4, H-20, 14, "#ffffff", "right");
+  px("KM/H", W-4, H-8, 7, "#8ad0ff", "right");
+  // speed bar
+  const bw = 60;
+  ctx.fillStyle = "rgba(6,8,24,0.55)";
+  ctx.fillRect(W-4-bw, H-24, bw, 3);
+  ctx.fillStyle = spd>200?"#ff5a4a":spd>120?"#ffd24a":"#5affa0";
+  ctx.fillRect(W-4-bw, H-24, bw*(player.speed/MAX_SPEED), 3);
+
+  // pass flash
+  if (flashTimer > 0) {
+    const a = Math.min(1, flashTimer);
+    ctx.globalAlpha = a;
+    px("ULTRAPASSOU!", W/2, H*0.34, 13, "#7fffb0", "center");
+    ctx.globalAlpha = 1;
+  }
+  if (crashTimer > 0) {
+    ctx.globalAlpha = Math.min(1, crashTimer);
+    px("BATIDA!", W/2, H*0.34, 13, "#ff5a4a", "center");
+    ctx.globalAlpha = 1;
+  }
+}
+
+function panel(title, lines, accent) {
+  ctx.fillStyle = "rgba(4,6,18,0.82)";
+  ctx.fillRect(0,0,W,H);
+  px(title, W/2, H*0.12, 24, accent, "center");
+  ctx.fillStyle = accent;
+  ctx.fillRect(W/2-100, H*0.26, 200, 2);
+  // vertically center the text block in the lower area so nothing clips
+  let total = 0;
+  for (const ln of lines) total += (ln.s||9) + 5;
+  let y = H*0.32 + Math.max(0, (H*0.52 - total) / 2);
+  for (const ln of lines) {
+    px(ln.t, W/2, y, ln.s||9, ln.c||"#dfe8ff", "center");
+    y += (ln.s||9) + 5;
+  }
+}
+
+function drawMenu() {
+  // animated title
+  panel("ENDURO 2026", [
+    {t:"", s:4},
+    {t:"RACER 3D · ESTILO N64", s:10, c:"#8ad0ff"},
+    {t:"", s:6},
+    {t:"Ultrapasse a cota de carros de cada dia", s:8, c:"#c8d4ff"},
+    {t:"atravesse amanhecer, noite, neblina e neve", s:8, c:"#c8d4ff"},
+    {t:"", s:8},
+    {t:"CIMA = acelera   BAIXO = freia   LADOS = dirigir", s:8, c:"#9aa8dd"},
+    {t:"", s:6},
+    {t: blink()? "▶ ENTER / TOQUE PARA COMEÇAR" : " ", s:10, c:"#ffe08a"},
+    {t:"", s:8},
+    {t:`RECORDE: DIA ${bestDay} · ${bestScore} carros`, s:8, c:"#7fffb0"},
+  ], "#ff5a4a");
+}
+function drawDayClear() {
+  panel(`DIA ${day} OK!`, [
+    {t:`Você ultrapassou ${carsPassed} carros`, s:9, c:"#7fffb0"},
+    {t:`Total acumulado: ${totalPassed}`, s:9, c:"#ffe08a"},
+    {t:"", s:8},
+    {t:`Amanhã: cota de ${5 + Math.floor((day+1)*4.5)} carros`, s:8, c:"#c8d4ff"},
+    {t:"", s:8},
+    {t: blink()? "▶ ENTER / TOQUE: PRÓXIMO DIA" : " ", s:10, c:"#ffe08a"},
+  ], "#7fffb0");
+}
+function drawGameOver() {
+  panel("FIM DE JOGO", [
+    {t:`Você chegou ao DIA ${day}`, s:10, c:"#ff9a6a"},
+    {t:`Carros ultrapassados: ${totalPassed}`, s:9, c:"#ffe08a"},
+    {t:"", s:8},
+    {t:`RECORDE: DIA ${bestDay} · ${bestScore}`, s:8, c:"#7fffb0"},
+    {t:"", s:8},
+    {t: blink()? "▶ ENTER / TOQUE: JOGAR DE NOVO" : " ", s:10, c:"#ffe08a"},
+  ], "#ff5a4a");
+}
+function drawPaused() {
+  ctx.fillStyle = "rgba(4,6,18,0.6)";
+  ctx.fillRect(0,0,W,H);
+  px("PAUSA", W/2, H*0.42, 20, "#8ad0ff", "center");
+  px("P para continuar", W/2, H*0.56, 9, "#c8d4ff", "center");
+}
+
+let clock = 0;
+function blink(){ return Math.floor(clock*2)%2===0; }
+
+// ---- Attract-mode demo track (so the menu has a live scrolling road) --------
+function initDemo() {
+  buildTrack(4242);
+  resetCars();
+  player.x = 0; player.z = 0; player.speed = MAX_SPEED * 0.55;
+  phaseIdx = 1; phaseTime = 0;
+}
+initDemo();
+
+// ---- Main loop ---------------------------------------------------------------
+let last = performance.now();
+function frame(now) {
+  let dt = (now - last) / 1000;
+  last = now;
+  if (dt > 0.05) dt = 0.05;   // clamp long frames
+  if (dt < 0) dt = 0;         // guard against non-monotonic clocks
+  clock += dt;
+  update(dt);
+  // Attract mode: keep the road scrolling gently behind the menu.
+  if (state === "menu") {
+    player.z += player.speed * dt;
+    while (player.z >= trackLength) player.z -= trackLength;
+    player.x = Math.sin(clock * 0.6) * 0.4;
+    phaseTime += dt;
+    if (phaseTime >= PHASE_DURATION) { phaseTime = 0; phaseIdx = (phaseIdx + 1) % PHASE_ORDER.length; }
+  }
+  render();
+  requestAnimationFrame(frame);
+}
+requestAnimationFrame(frame);
+
+})();
+
+// --- PWA: registra o service worker (habilita instalar no PC e jogar offline) ---
+if ("serviceWorker" in navigator) {
+  window.addEventListener("load", () => {
+    navigator.serviceWorker.register("sw.js").catch(() => { /* offline/local: segue sem SW */ });
+  });
+}
+</script>
+</body>
+</html>
