@@ -250,7 +250,6 @@ function toggleMute() {
 }
 
 // ---- Input -------------------------------------------------------------------
-const keys = {};
 const K = { left:false, right:false, gas:false, brake:false, boost:false };
 function setKey(e, down) {
   const c = e.code;
@@ -360,13 +359,9 @@ function rnd(){ rngSeed = (rngSeed*9301+49297)%233280; return rngSeed/233280; }
 function buildTrack(seed) {
   segments = [];
   rngSeed = seed;
-  const ROAD = { LENGTH:{NONE:0,SHORT:25,MEDIUM:50,LONG:100},
-                 CURVE:{NONE:0,EASY:2,MEDIUM:4,HARD:6},
-                 HILL:{NONE:0,LOW:20,MEDIUM:40,HIGH:60} };
   addRoad(30,30,30,0,0);                                  // starting straight
   const pieces = 22 + day*2;
   for (let i = 0; i < pieces; i++) {
-    const r = rnd();
     const len   = [25,50,100][Math.floor(rnd()*3)];
     const curve = (rnd()<0.5?-1:1) * [0,2,4,6][Math.floor(rnd()*4)];
     const hill  = (rnd()<0.5?-1:1) * [0,20,40,60][Math.floor(rnd()*4)];
@@ -482,7 +477,6 @@ function curTheme() { return THEMES[PHASE_ORDER[phaseIdx]]; }
 function update(dt) {
   if (state !== "play" || paused) return;
 
-  const startPos = player.z;
   const seg = findSegment(player.z);
   const speedPct = player.speed / MAX_SPEED;
 
@@ -539,7 +533,6 @@ function update(dt) {
   // move rival cars & check overtakes / collisions
   const playerW = 0.9;
   for (const c of cars) {
-    const before = c.z;
     c.z += c.speed * dt;
     if (c.z >= trackLength) c.z -= trackLength;
 
@@ -562,14 +555,6 @@ function update(dt) {
           spawnSparks(W/2, H-42, 20);
           sfxCrash();
         }
-      }
-    }
-
-    // overtake detection: player crosses a car from behind
-    if (!c.passed) {
-      // player position increases; if we were behind and now ahead
-      if (rel < 0 && rel > -SEG_LEN*3 && player.speed > c.speed) {
-        // count as passed when it slips behind us
       }
     }
   }
@@ -931,9 +916,9 @@ function render() {
   for (const {c, rel} of near) {
     const segIdx = Math.floor(c.z / SEG_LEN) % segments.length;
     const seg = segments[segIdx];
-    // approximate screen projection using segment scale
-    const p = { world:{x:c.offset*ROAD_WIDTH, y:seg.p1.world.y, z:c.z}, cam:{}, screen:{} };
+    // unwrap z across the loop point so cars just ahead don't project behind us
     let cz = c.z; if (cz < player.z) cz += trackLength;
+    const p = { world:{x:c.offset*ROAD_WIDTH, y:seg.p1.world.y, z:cz}, cam:{}, screen:{} };
     project(p, camX, camY, camZ);
     if (p.screen.scale <= 0) continue;
     // fade the car into the distance fog
