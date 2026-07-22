@@ -70,7 +70,7 @@ export function PropertyForm({
       valorArrematacao: Number(form.valorArrematacao) || 0,
       valorAvaliacao: Number(form.valorAvaliacao) || 0,
       valorVenda: Number(form.valorVenda) || 0,
-      aliquotaIR: form.aliquotaIR != null ? Number(form.aliquotaIR) : 15,
+      aliquotaIR: Number(form.aliquotaIR) > 0 ? Number(form.aliquotaIR) : 15,
       comissaoCorretorPct: form.comissaoCorretorPct != null ? Number(form.comissaoCorretorPct) : 5,
       dataArrematacao: form.dataArrematacao || '',
       dataVenda: form.dataVenda || '',

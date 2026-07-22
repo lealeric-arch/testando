@@ -33,6 +33,23 @@ export function PropertyDetail({
   const [sub, setSub] = useState<SubAba>('gastos');
   const [fotoAtiva, setFotoAtiva] = useState<string | null>(null);
   const [lightbox, setLightbox] = useState(false);
+  const [docsAberto, setDocsAberto] = useState(false);
+  const documentos = imovel.documentos || [];
+  const anexarDocumento = (ev: any) => {
+    const file = ev.target.files?.[0];
+    if (!file) return;
+    if (file.size > 4 * 1024 * 1024) { alert('Arquivo muito grande (max 4MB).'); ev.target.value = ''; return; }
+    const reader = new FileReader();
+    reader.onload = () => {
+      const doc = { id: String(Date.now()), nome: file.name, tipo: file.type || 'arquivo', tamanho: file.size, dataUrl: reader.result as string, addedAt: new Date().toISOString() };
+      store.salvarImovel({ ...imovel, documentos: [...documentos, doc], updatedAt: new Date().toISOString() });
+    };
+    reader.readAsDataURL(file);
+    ev.target.value = '';
+  };
+  const excluirDocumento = (docId: string) => {
+    store.salvarImovel({ ...imovel, documentos: documentos.filter((d) => d.id !== docId), updatedAt: new Date().toISOString() });
+  };
   const galeria = imovel.fotos && imovel.fotos.length ? imovel.fotos : (imovel.fotoUrl ? [imovel.fotoUrl] : []);
   const [editando, setEditando] = useState(false);
   const [relatorioAberto, setRelatorioAberto] = useState(false);
@@ -106,6 +123,7 @@ export function PropertyDetail({
                 )}
               </div>
               <div className="flex flex-wrap gap-2">
+                <button className="btn-ghost" onClick={() => setDocsAberto(true)}>{"\ud83d\udcc1"} Docs{documentos.length ? ` (${documentos.length})` : ''}</button>
                 <button className="btn-ghost" onClick={() => exportarPlanilhaExcel(imovel, gastosDoImovel)}>⬇ Excel</button>
                 <button className="btn-ghost" onClick={() => setRelatorioAberto(true)}>🖨️ Relatório</button>
                 <button className="btn-ghost" onClick={() => setEditando(true)}>Editar</button>
@@ -201,6 +219,35 @@ export function PropertyDetail({
       </div>
 
       <PropertyForm aberto={editando} onClose={() => setEditando(false)} imovelExistente={imovel} />
+      {docsAberto && (
+        <div className="fixed inset-0 z-[70] flex items-center justify-center bg-slate-900/50 p-4" onClick={() => setDocsAberto(false)}>
+          <div className="max-h-[80vh] w-full max-w-lg overflow-y-auto rounded-xl bg-white p-5 shadow-xl" onClick={(ev) => ev.stopPropagation()}>
+            <div className="mb-3 flex items-center justify-between">
+              <h3 className="font-display text-lg font-semibold text-slate-800">{"\ud83d\udcc1"} Documentos do imovel</h3>
+              <button className="text-slate-400 hover:text-slate-600" onClick={() => setDocsAberto(false)}>{"\u2715"}</button>
+            </div>
+            <label className="mb-3 flex cursor-pointer items-center justify-center gap-2 rounded-lg border-2 border-dashed border-slate-300 py-3 text-sm text-slate-500 hover:border-caixa-blue hover:text-caixa-blue">
+              <span>+ Anexar documento (PDF ou imagem, ate 4MB)</span>
+              <input type="file" accept="application/pdf,image/*" className="hidden" onChange={anexarDocumento} />
+            </label>
+            {documentos.length === 0 && <p className="py-4 text-center text-sm text-slate-400">Nenhum documento anexado. Guarde aqui matricula, edital, auto de arrematacao e comprovantes.</p>}
+            <div className="space-y-2">
+              {documentos.map((d) => (
+                <div key={d.id} className="flex items-center justify-between rounded-lg border border-slate-100 px-3 py-2">
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate text-sm font-medium text-slate-700">{d.nome}</p>
+                    <p className="text-xs text-slate-400">{Math.round(d.tamanho / 1024)} KB {"\u00b7"} {new Date(d.addedAt).toLocaleDateString('pt-BR')}</p>
+                  </div>
+                  <div className="ml-3 flex shrink-0 gap-2">
+                    <a className="btn-ghost text-xs" href={d.dataUrl} download={d.nome}>Baixar</a>
+                    <button className="text-xs text-red-500 hover:text-red-700" onClick={() => excluirDocumento(d.id)}>Excluir</button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
       <ReportView aberto={relatorioAberto} onClose={() => setRelatorioAberto(false)} imovel={imovel} gastos={gastosDoImovel} />
     </div>
   );
