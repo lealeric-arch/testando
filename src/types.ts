@@ -179,7 +179,6 @@ export interface Imovel {
   reinvestimentoResidencial?: boolean;
   imovelResidencial?: boolean;
   observacoes?: string;
-  documentos?: DocumentoImovel[];
 }
 
 // Documento anexado a um imóvel (armazenado localmente como data URL base64).
@@ -223,15 +222,6 @@ export interface ViabilidadeSimulacao {
   margemDesejadaPct: number;
   custoReformaEst: number;
   outrosCustosEst: number;
-}
-
-export interface DocumentoImovel {
-  id: string;
-  nome: string;
-  tipo: string;
-  tamanho: number;
-  dataUrl: string;
-  addedAt: string;
 }
 
 export type Aba = 'dashboard' | 'portfolio' | 'detalhe' | 'viabilidade' | 'notificacoes';
