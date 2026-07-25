@@ -81,7 +81,7 @@ export function CalculadoraViabilidade({ onAbrirImovel }: { onAbrirImovel: (id: 
       titulo: titulo.trim(),
       endereco,
       status: 'Arrematado',
-      etapaDesocupacao: 'Não iniciada',
+      etapaDesocupacao: 'Ocupado Ex proprietário',
       valorArrematacao: r.lanceMaximo,
       valorAvaliacao: valorMercado,
       aliquotaIR: 15,

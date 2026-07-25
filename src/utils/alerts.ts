@@ -41,15 +41,15 @@ export function gerarAlertas(imoveis: Imovel[]): Alerta[] {
       }
     }
 
-    // Liminar crítica: etapa de desocupação em "Liminar / Mandado".
-    if (im.etapaDesocupacao === 'Liminar / Mandado') {
+    // Imovel ainda ocupado: acompanhar desocupacao.
+    if (im.etapaDesocupacao !== 'Desocupado' && im.status !== 'Vendido') {
       alertas.push({
         id: `liminar:${im.id}`,
         tipo: 'liminar',
         severidade: 'alta',
         imovelId: im.id,
-        titulo: 'Liminar / Mandado ativo',
-        descricao: `${im.titulo} está na etapa "Liminar / Mandado". Acompanhe o cumprimento judicial.`,
+        titulo: 'Imóvel ocupado',
+        descricao: `${im.titulo} está na etapa "${im.etapaDesocupacao}". Acompanhe a desocupação.`,
       });
     }
   }

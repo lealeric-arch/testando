@@ -47,7 +47,7 @@ export async function semearSeVazio(): Promise<void> {
     fotoUrl:
       'https://images.unsplash.com/photo-1568605114967-8130f3a36994?auto=format&fit=crop&w=800&q=60',
     status: 'Desocupação',
-    etapaDesocupacao: 'Liminar / Mandado',
+    etapaDesocupacao: 'Ocupado Ex proprietário',
     valorArrematacao: 165000,
     valorAvaliacao: 250000,
     dataArrematacao: diasAtras(60).slice(0, 10),
