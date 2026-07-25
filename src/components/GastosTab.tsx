@@ -72,12 +72,16 @@ function GastoEditor({
       </div>
       <div>
         <label className="label">Pago por</label>
-        <select className="input" value={f.pagoPor || 'Voce'} onChange={(e) => setF({ ...f, pagoPor: e.target.value })}>
+        <select className="input" value={f.pagoPor && f.pagoPor !== 'Voce' && !socios.some((s) => s.id === f.pagoPor) ? '__outro__' : (f.pagoPor || 'Voce')} onChange={(e) => setF({ ...f, pagoPor: e.target.value === '__outro__' ? ' ' : e.target.value })}>
           <option value="Voce">Você</option>
           {socios.map((s) => (
             <option key={s.id} value={s.id}>{s.nome}</option>
           ))}
+          <option value="__outro__">Outro (digitar nome)</option>
         </select>
+        {f.pagoPor && f.pagoPor !== 'Voce' && !socios.some((s) => s.id === f.pagoPor) && (
+          <input className="input mt-2" placeholder="Nome de quem pagou" value={(f.pagoPor || '').trim()} onChange={(e) => setF({ ...f, pagoPor: e.target.value || ' ' })} />
+        )}
       </div>
       <div>
         <label className="label">Responsável / observação</label>
@@ -168,7 +172,7 @@ export function GastosTab({ imovel, gastos }: { imovel: Imovel; gastos: Gasto[] 
                     </div>
                     <p className="mt-0.5 text-xs text-slate-400">
                       {g.data ? new Date(g.data + 'T00:00:00').toLocaleDateString('pt-BR') : '—'}
-                      {` · pago por ${g.pagoPor && g.pagoPor !== 'Voce' ? (imovel.socios || []).find((s) => s.id === g.pagoPor)?.nome || '—' : 'Você'}`}
+                      {` · pago por ${g.pagoPor && g.pagoPor !== 'Voce' ? (imovel.socios || []).find((s) => s.id === g.pagoPor)?.nome || (g.pagoPor || '').trim() || '—' : 'Você'}`}
                       {g.responsavel ? ` · ${g.responsavel}` : ''}
                     </p>
                   </div>

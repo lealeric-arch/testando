@@ -86,11 +86,11 @@ export function StatusBadge({ status }: { status: ImovelStatus }) {
 }
 
 export function EtapaBadge({ etapa }: { etapa: EtapaDesocupacao }) {
-  const critico = etapa === 'Liminar / Mandado';
+  const livre = etapa === 'Desocupado';
   return (
     <span
       className={`inline-block rounded-full px-2.5 py-1 text-xs font-medium ${
-        critico ? 'bg-red-100 text-red-700' : 'bg-slate-100 text-slate-600'
+        livre ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'
       }`}
     >
       {etapa}

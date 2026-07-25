@@ -24,8 +24,8 @@ export function PropertyForm({
   const e = imovelExistente;
   const estadoInicial = (): Partial<Imovel> =>
     e
-      ? { ...e, fotos: e.fotos && e.fotos.length ? e.fotos : (e.fotoUrl ? [e.fotoUrl] : []) }
-      : { status: 'Arrematado', etapaDesocupacao: 'Não iniciada', imovelResidencial: true, socios: [] };
+      ? { ...e, fotos: e.fotos && e.fotos.length ? e.fotos : (e.fotoUrl ? [e.fotoUrl] : []), etapaDesocupacao: (ETAPAS_DESOCUPACAO as string[]).includes(e.etapaDesocupacao) ? e.etapaDesocupacao : ('Ocupado Ex proprietário' as any) }
+      : { status: 'Arrematado', etapaDesocupacao: 'Ocupado Ex proprietário', imovelResidencial: true, socios: [] };
 
   const [form, setForm] = useState<Partial<Imovel>>(estadoInicial);
 
@@ -64,7 +64,7 @@ export function PropertyForm({
       fotoUrl: (form.fotos && form.fotos[0]) || '',
       fotos: form.fotos || [],
       status: form.status || 'Arrematado',
-      etapaDesocupacao: form.etapaDesocupacao || 'Não iniciada',
+      etapaDesocupacao: (ETAPAS_DESOCUPACAO as string[]).includes(form.etapaDesocupacao as string) ? form.etapaDesocupacao : ('Ocupado Ex proprietário' as any),
       modalidade: form.modalidade,
       comprador: form.comprador || '',
       valorArrematacao: Number(form.valorArrematacao) || 0,

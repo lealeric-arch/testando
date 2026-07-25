@@ -225,9 +225,9 @@ function DesocupacaoTab({ imovel, onEtapa }: { imovel: Imovel; onEtapa: (e: Etap
         <EtapaBadge etapa={imovel.etapaDesocupacao} />
       </div>
 
-      {imovel.etapaDesocupacao === 'Liminar / Mandado' && (
+      {imovel.etapaDesocupacao !== 'Desocupado' && (
         <div className="mb-6 rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-700">
-          ⚖️ <strong>Atenção crítica:</strong> imóvel em fase de Liminar / Mandado. Acompanhe de perto o cumprimento judicial.
+          ⚖️ <strong>Atenção:</strong> imóvel ainda ocupado. Acompanhe a negociação ou as medidas de desocupação.
         </div>
       )}
 

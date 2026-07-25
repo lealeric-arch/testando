@@ -18,19 +18,15 @@ export const IMOVEL_STATUS: ImovelStatus[] = [
 ];
 
 export type EtapaDesocupacao =
-  | 'Não iniciada'
-  | 'Notificação Extrajudicial'
-  | 'Ação de Imissão na Posse'
-  | 'Liminar / Mandado'
-  | 'Cumprimento de Mandado'
+  | 'Ocupado Ex proprietário'
+  | 'Ocupado Locatário'
+  | 'Ocupado Emprestado'
   | 'Desocupado';
 
 export const ETAPAS_DESOCUPACAO: EtapaDesocupacao[] = [
-  'Não iniciada',
-  'Notificação Extrajudicial',
-  'Ação de Imissão na Posse',
-  'Liminar / Mandado',
-  'Cumprimento de Mandado',
+  'Ocupado Ex proprietário',
+  'Ocupado Locatário',
+  'Ocupado Emprestado',
   'Desocupado',
 ];
 
