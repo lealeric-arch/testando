@@ -172,13 +172,14 @@ export function CalculadoraViabilidade({ onAbrirImovel }: { onAbrirImovel: (id: 
       )}
 
       {/* Anuncios semelhantes (comparaveis de mercado) */}
-      {endereco.trim() && (
+      {(
         <div className="card p-6">
           <h3 className="mb-1 font-display font-semibold text-slate-800">Anuncios semelhantes na regiao</h3>
           <p className="mb-4 text-xs text-slate-400">10 buscas prontas com os dados deste imovel. Cada cartao abre os anuncios reais e atualizados da fonte no navegador.</p>
           <div className="grid grid-cols-2 gap-2 sm:grid-cols-5">
             {(() => {
-              const end = endereco.trim();
+              const end = endereco.trim() || titulo.trim();
+              if (!end) return <p className="col-span-2 text-sm text-slate-400 sm:col-span-5">Preencha o endereco (ou o titulo) acima para gerar as buscas nos portais.</p>;
               const regiao = end.replace(/[0-9]/g, " ").replace(/\s+/g, " ").trim();
               const m2 = metragem > 0 ? " " + metragem + " m2" : "";
               const faixa = valorMercado > 0 ? " ate R$ " + Math.round((valorMercado * 1.2) / 1000) + " mil" : "";
