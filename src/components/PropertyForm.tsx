@@ -125,9 +125,9 @@ export function PropertyForm({
           <label className="label">Comprador (na revenda)</label>
           <input className="input" value={form.comprador || ''} onChange={(ev) => set('comprador', ev.target.value)} placeholder="Nome do comprador" />
         </div>
-        {Number(form.valorAvaliacao) > 0 && (
+        {Number(form.valorArrematacao) > 0 && (
           <div className="col-span-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
-            <b>Provisao sugerida (15% da avaliacao): {formatBRL(Number(form.valorAvaliacao) * 0.15)}</b> - estimativa para condominio em atraso e tributos do imovel arrematado. Lance como gasto ao confirmar os valores reais.
+            <b>Custos estimados (25% da arrematacao): {formatBRL(Number(form.valorArrematacao) * 0.25)}</b> - provisao para condominio em atraso, tributos, ITBI, cartorio e desocupacao. Lance como gasto ao confirmar os valores reais.
           </div>
         )}
         <div className="col-span-2">

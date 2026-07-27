@@ -10,6 +10,9 @@ import { toast } from '../utils/toast';
 export function CalculadoraViabilidade({ onAbrirImovel }: { onAbrirImovel: (id: string) => void }) {
   const [titulo, setTitulo] = useState('');
   const [endereco, setEndereco] = useState('');
+  const [metragem, setMetragem] = useState(0);
+  const [valorLance, setValorLance] = useState(0);
+  const [valorAvaliacaoEdital, setValorAvaliacaoEdital] = useState(0);
   const [valorMercado, setValorMercado] = useState(0);
   const [margem, setMargem] = useState(25);
   const [reforma, setReforma] = useState(0);
@@ -92,7 +95,15 @@ export function CalculadoraViabilidade({ onAbrirImovel }: { onAbrirImovel: (id: 
           </div>
           <div>
             <label className="label">Endereço</label>
-            <input className="input" value={endereco} onChange={(e) => setEndereco(e.target.value)} />
+            <input className="input" value={endereco} onChange={(e) => setEndereco(e.target.value)} placeholder="Rua, numero - bairro, cidade" />
+          </div>
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+            <div>
+              <label className="label">Metragem (m2)</label>
+              <input className="input" type="number" min={0} value={metragem || ''} onChange={(e) => setMetragem(Number(e.target.value) || 0)} placeholder="Ex.: 78" />
+            </div>
+            {campo('Valor do lance (R$)', valorLance, setValorLance)}
+            {campo('Valor de avaliacao (R$)', valorAvaliacaoEdital, setValorAvaliacaoEdital)}
           </div>
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             {campo('Valor de mercado', valorMercado, setValorMercado)}
@@ -147,6 +158,19 @@ export function CalculadoraViabilidade({ onAbrirImovel }: { onAbrirImovel: (id: 
         </div>
       </div>
 
+      {valorLance > 0 && (
+        <div className="card p-6">
+          <h3 className="mb-4 font-display font-semibold text-slate-800">Analise do lance</h3>
+          <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
+            <div><p className="text-[11px] uppercase text-slate-400">Custos estimados (25%)</p><p className="mono text-lg font-bold text-caixa-orange">{formatBRL(valorLance * 0.25)}</p></div>
+            <div><p className="text-[11px] uppercase text-slate-400">Investimento total</p><p className="mono text-lg font-bold text-caixa-blue">{formatBRL(valorLance * 1.25)}</p></div>
+            <div><p className="text-[11px] uppercase text-slate-400">Desagio vs avaliacao</p><p className="mono text-lg font-bold text-slate-700">{valorAvaliacaoEdital > 0 ? formatPct(100 - (valorLance / valorAvaliacaoEdital) * 100) : '—'}</p></div>
+            <div><p className="text-[11px] uppercase text-slate-400">Lucro potencial</p><p className={"mono text-lg font-bold " + (valorMercado - valorLance * 1.25 >= 0 ? 'text-emerald-600' : 'text-red-600')}>{valorMercado > 0 ? formatBRL(valorMercado - valorLance * 1.25) : '—'}</p></div>
+          </div>
+          <p className="mt-3 text-xs text-slate-400">Custos estimados = 25% do valor de arrematacao (condominio em atraso, tributos, ITBI, cartorio e desocupacao). Lucro potencial = valor de mercado - (lance + 25%).</p>
+        </div>
+      )}
+
       {/* Anuncios semelhantes (comparaveis de mercado) */}
       {endereco.trim() && (
         <div className="card p-6">
@@ -156,6 +180,7 @@ export function CalculadoraViabilidade({ onAbrirImovel }: { onAbrirImovel: (id: 
             {(() => {
               const end = endereco.trim();
               const regiao = end.replace(/[0-9]/g, " ").replace(/\s+/g, " ").trim();
+              const m2 = metragem > 0 ? " " + metragem + " m2" : "";
               const faixa = valorMercado > 0 ? " ate R$ " + Math.round((valorMercado * 1.2) / 1000) + " mil" : "";
               const fontes: { n: string; u: (q: string) => string }[] = [
                 { n: "ZAP Imoveis", u: (q) => "https://www.google.com/search?q=" + encodeURIComponent("site:zapimoveis.com.br venda " + q) },
@@ -164,7 +189,7 @@ export function CalculadoraViabilidade({ onAbrirImovel }: { onAbrirImovel: (id: 
                 { n: "Imovelweb", u: (q) => "https://www.google.com/search?q=" + encodeURIComponent("site:imovelweb.com.br venda " + q) },
                 { n: "Chaves na Mao", u: (q) => "https://www.google.com/search?q=" + encodeURIComponent("site:chavesnamao.com.br venda " + q) },
               ];
-              const variacoes = [{ rot: "Endereco exato", q: end + faixa }, { rot: "Regiao", q: regiao + faixa }];
+              const variacoes = [{ rot: "Endereco exato", q: end + m2 + faixa }, { rot: "Regiao", q: regiao + m2 + faixa }];
               return fontes.flatMap((f) => variacoes.map((v) => (
                 <a key={f.n + v.rot} href={f.u(v.q)} target="_blank" rel="noreferrer" className="rounded-lg border border-slate-200 px-3 py-2 text-center text-xs font-semibold text-caixa-blue transition hover:border-caixa-blue hover:bg-slate-50">
                   {f.n}
