@@ -7,29 +7,6 @@ import { calcularLanceMaximo, formatBRL, formatPct, type ViabilidadeOpts } from 
 import { novoId, store } from '../utils/storage';
 import { toast } from '../utils/toast';
 
-type EstadoItem = 'OK' | 'PENDENTE' | 'RISCO';
-
-interface ItemDD {
-  chave: string;
-  label: string;
-  ajuda: string;
-  estado: EstadoItem;
-}
-
-const CHECKLIST_INICIAL: ItemDD[] = [
-  { chave: 'processos', label: 'Processos judiciais do imóvel', ajuda: 'Verifique ações de imissão, embargos e litígios na matrícula.', estado: 'PENDENTE' },
-  { chave: 'condominio', label: 'Débitos de condomínio', ajuda: 'Cotas em atraso podem ser assumidas pelo arrematante.', estado: 'PENDENTE' },
-  { chave: 'ocupacao', label: 'Situação de ocupação', ajuda: 'Imóvel ocupado exige desocupação (custo e prazo).', estado: 'PENDENTE' },
-  { chave: 'matricula', label: 'Matrícula e ônus', ajuda: 'Cheque penhoras, hipotecas e averbações pendentes.', estado: 'PENDENTE' },
-  { chave: 'financiamento', label: 'Financiamento previsto no edital', ajuda: 'Confirme se o edital permite financiamento Caixa.', estado: 'PENDENTE' },
-];
-
-const CORES_ESTADO: Record<EstadoItem, string> = {
-  OK: 'bg-emerald-100 text-emerald-700 border-emerald-200',
-  PENDENTE: 'bg-amber-100 text-amber-700 border-amber-200',
-  RISCO: 'bg-red-100 text-red-700 border-red-200',
-};
-
 export function CalculadoraViabilidade({ onAbrirImovel }: { onAbrirImovel: (id: string) => void }) {
   const [titulo, setTitulo] = useState('');
   const [endereco, setEndereco] = useState('');
@@ -42,7 +19,6 @@ export function CalculadoraViabilidade({ onAbrirImovel }: { onAbrirImovel: (id: 
   const [entradaPct, setEntradaPct] = useState(30);
   const [taxaAval, setTaxaAval] = useState(3000);
 
-  const [checklist, setChecklist] = useState<ItemDD[]>(CHECKLIST_INICIAL);
 
   const opts: ViabilidadeOpts = { usarFinanciamento: usarFin, entradaPct, taxaAvaliacaoCef: taxaAval };
   const r = useMemo(
@@ -51,25 +27,14 @@ export function CalculadoraViabilidade({ onAbrirImovel }: { onAbrirImovel: (id: 
   );
 
   const inviavel = valorMercado <= 0 || r.lanceMaximo <= 0;
-  const temRisco = checklist.some((c) => c.estado === 'RISCO');
   const recomendacao = useMemo(() => {
     if (valorMercado <= 0) return null;
     if (r.lanceMaximo <= 0) return { nivel: 'Inviável', cor: 'bg-red-50 border-red-200 text-red-800', icone: '⛔', txt: 'A margem desejada não cabe no valor de mercado. Reduza custos ou a margem.' };
-    if (temRisco) return { nivel: 'Alto risco', cor: 'bg-red-50 border-red-200 text-red-800', icone: '⚠️', txt: 'Há itens marcados como RISCO na due diligence. Reavalie antes de dar o lance.' };
     if (r.percentualDoMercado > 75) return { nivel: 'Atenção', cor: 'bg-amber-50 border-amber-200 text-amber-800', icone: '🟡', txt: `O lance máximo representa ${formatPct(r.percentualDoMercado)} do valor de mercado — margem apertada.` };
     return { nivel: 'Excelente janela', cor: 'bg-emerald-50 border-emerald-200 text-emerald-800', icone: '🟢', txt: 'Boa oportunidade: lance com folga sobre o valor de mercado.' };
-  }, [valorMercado, r, temRisco]);
+  }, [valorMercado, r]);
 
-  function ciclarEstado(chave: string) {
-    setChecklist((cl) =>
-      cl.map((c) => {
-        if (c.chave !== chave) return c;
-        const prox: EstadoItem = c.estado === 'PENDENTE' ? 'OK' : c.estado === 'OK' ? 'RISCO' : 'PENDENTE';
-        return { ...c, estado: prox };
-      }),
-    );
-  }
-
+  
   async function criarImovel() {
     if (!titulo.trim()) return toast('Informe um título para criar o imóvel.', 'erro');
     if (valorMercado < 0 || reforma < 0 || outros < 0) return toast('Os valores não podem ser negativos.', 'erro');
@@ -182,27 +147,34 @@ export function CalculadoraViabilidade({ onAbrirImovel }: { onAbrirImovel: (id: 
         </div>
       </div>
 
-      {/* Checklist due diligence */}
-      <div className="card p-6">
-        <h3 className="mb-1 font-display font-semibold text-slate-800">Due diligence do edital</h3>
-        <p className="mb-4 text-xs text-slate-400">Clique em cada item para alternar: Pendente → OK → Risco.</p>
-        <div className="space-y-2">
-          {checklist.map((c) => (
-            <button
-              key={c.chave}
-              onClick={() => ciclarEstado(c.chave)}
-              className="flex w-full items-center justify-between gap-3 rounded-lg border border-slate-200 p-3 text-left hover:bg-slate-50"
-              title={c.ajuda}
-            >
-              <div>
-                <p className="text-sm font-medium text-slate-800">{c.label}</p>
-                <p className="text-xs text-slate-400">{c.ajuda}</p>
-              </div>
-              <span className={`shrink-0 rounded-full border px-3 py-1 text-xs font-semibold ${CORES_ESTADO[c.estado]}`}>{c.estado}</span>
-            </button>
-          ))}
+      {/* Anuncios semelhantes (comparaveis de mercado) */}
+      {endereco.trim() && (
+        <div className="card p-6">
+          <h3 className="mb-1 font-display font-semibold text-slate-800">Anuncios semelhantes na regiao</h3>
+          <p className="mb-4 text-xs text-slate-400">10 buscas prontas com os dados deste imovel. Cada cartao abre os anuncios reais e atualizados da fonte no navegador.</p>
+          <div className="grid grid-cols-2 gap-2 sm:grid-cols-5">
+            {(() => {
+              const end = endereco.trim();
+              const regiao = end.replace(/[0-9]/g, " ").replace(/\s+/g, " ").trim();
+              const faixa = valorMercado > 0 ? " ate R$ " + Math.round((valorMercado * 1.2) / 1000) + " mil" : "";
+              const fontes: { n: string; u: (q: string) => string }[] = [
+                { n: "ZAP Imoveis", u: (q) => "https://www.google.com/search?q=" + encodeURIComponent("site:zapimoveis.com.br venda " + q) },
+                { n: "OLX", u: (q) => "https://www.olx.com.br/imoveis/venda?q=" + encodeURIComponent(q) },
+                { n: "VivaReal", u: (q) => "https://www.google.com/search?q=" + encodeURIComponent("site:vivareal.com.br venda " + q) },
+                { n: "Imovelweb", u: (q) => "https://www.google.com/search?q=" + encodeURIComponent("site:imovelweb.com.br venda " + q) },
+                { n: "Chaves na Mao", u: (q) => "https://www.google.com/search?q=" + encodeURIComponent("site:chavesnamao.com.br venda " + q) },
+              ];
+              const variacoes = [{ rot: "Endereco exato", q: end + faixa }, { rot: "Regiao", q: regiao + faixa }];
+              return fontes.flatMap((f) => variacoes.map((v) => (
+                <a key={f.n + v.rot} href={f.u(v.q)} target="_blank" rel="noreferrer" className="rounded-lg border border-slate-200 px-3 py-2 text-center text-xs font-semibold text-caixa-blue transition hover:border-caixa-blue hover:bg-slate-50">
+                  {f.n}
+                  <span className="block text-[10px] font-normal text-slate-400">{v.rot}</span>
+                </a>
+              )));
+            })()}
+          </div>
         </div>
-      </div>
+      )}
     </div>
   );
 }
