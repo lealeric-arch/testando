@@ -10,6 +10,7 @@ import { obterFotoImovel } from '../utils/images';
 import { exportarPlanilhaExcel } from '../utils/excelExport';
 import { ConfirmPopover, StatusBadge, EtapaBadge, Thumb } from './ui';
 import { PropertyForm } from './PropertyForm';
+import { CompartilharModal } from './CompartilharModal';
 import { GastosTab } from './GastosTab';
 import { ResultadoTab } from './ResultadoTab';
 import { SociosTab } from './SociosTab';
@@ -36,6 +37,7 @@ export function PropertyDetail({
   const galeria = imovel.fotos && imovel.fotos.length ? imovel.fotos : (imovel.fotoUrl ? [imovel.fotoUrl] : []);
   const [editando, setEditando] = useState(false);
   const [relatorioAberto, setRelatorioAberto] = useState(false);
+  const [compartilharAberto, setCompartilharAberto] = useState(false);
 
   const gastosDoImovel = useMemo(() => gastos.filter((g) => g.imovelId === imovel.id), [gastos, imovel.id]);
   const resumo = resumoFinanceiro(imovel, gastos);
@@ -108,6 +110,7 @@ export function PropertyDetail({
               <div className="flex flex-wrap gap-2">
                 <button className="btn-ghost" onClick={() => exportarPlanilhaExcel(imovel, gastosDoImovel)}>⬇ Excel</button>
                 <button className="btn-ghost" onClick={() => setRelatorioAberto(true)}>🖨️ Relatório</button>
+                <button className="btn-ghost" onClick={() => setCompartilharAberto(true)}>🔗 Compartilhar</button>
                 <button className="btn-ghost" onClick={() => setEditando(true)}>Editar</button>
                 <ConfirmPopover
                   mensagem={`Excluir "${imovel.titulo}" e todos os gastos vinculados?`}
@@ -202,6 +205,12 @@ export function PropertyDetail({
 
       <PropertyForm aberto={editando} onClose={() => setEditando(false)} imovelExistente={imovel} />
       <ReportView aberto={relatorioAberto} onClose={() => setRelatorioAberto(false)} imovel={imovel} gastos={gastosDoImovel} />
+      <CompartilharModal
+        aberto={compartilharAberto}
+        onClose={() => setCompartilharAberto(false)}
+        imovel={imovel}
+        gastos={gastosDoImovel}
+      />
     </div>
   );
 }

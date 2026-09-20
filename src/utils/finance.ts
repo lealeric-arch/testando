@@ -118,7 +118,8 @@ export function resultadoImovel(imovel: Imovel, gastos: Gasto[]): ResultadoImove
   const saldoLiquidoVenda = vendido ? valorVenda - custosVenda - comissaoCorretor : 0;
   const lucroBruto = vendido ? saldoLiquidoVenda - totalInvestido : 0;
 
-  const aliquotaIR = Number(imovel.aliquotaIR) > 0 ? Number(imovel.aliquotaIR) : IR_PADRAO; // 15% sempre aplicado quando nao informado
+  // 15% aplicado quando a alíquota não é informada; um 0 explícito (isento) é respeitado.
+  const aliquotaIR = imovel.aliquotaIR != null ? Number(imovel.aliquotaIR) : IR_PADRAO;
   const impostoIR = vendido ? round2(Math.max(0, lucroBruto) * (aliquotaIR / 100)) : 0;
   const lucroLiquido = vendido ? lucroBruto - impostoIR : 0;
   const roi = vendido && totalInvestido > 0 ? (lucroLiquido / totalInvestido) * 100 : 0;

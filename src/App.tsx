@@ -12,8 +12,12 @@ import { PropertyDetail } from './components/PropertyDetail';
 import { CalculadoraViabilidade } from './components/CalculadoraViabilidade';
 import { AjustesView } from './components/AjustesView';
 import { Toaster } from './components/Toaster';
+import { SharedPropertyView } from './components/SharedPropertyView';
+import { lerCompartilhamentoDaURL } from './utils/share';
 
 export default function App() {
+  // Modo "somente leitura": link compartilhado com o sócio (#compartilhado=...).
+  const [compartilhado] = useState(() => lerCompartilhamentoDaURL());
   const [imoveis, setImoveis] = useState<Imovel[]>([]);
   const [gastos, setGastos] = useState<Gasto[]>([]);
   const [documentos, setDocumentos] = useState<Documento[]>([]);
@@ -21,8 +25,9 @@ export default function App() {
   const [imovelSelecionado, setImovelSelecionado] = useState<string | null>(null);
   const [pronto, setPronto] = useState(false);
 
-  // Inicializa a base local.
+  // Inicializa a base local (ignora no modo compartilhado — nenhum dado local é tocado).
   useEffect(() => {
+    if (compartilhado) return;
     let unsub = () => {};
     (async () => {
       await store.init();
@@ -35,11 +40,11 @@ export default function App() {
       setPronto(true);
     })();
     return () => unsub();
-  }, []);
+  }, [compartilhado]);
 
   // Notificações de alertas críticos persistentes (uma vez por ativo).
   useEffect(() => {
-    if (!pronto || permissaoAtual() !== 'granted') return;
+    if (compartilhado || !pronto || permissaoAtual() !== 'granted') return;
     for (const a of gerarAlertas(imoveis)) {
       notificar({
         titulo: a.titulo,
@@ -66,6 +71,11 @@ export default function App() {
     { id: 'viabilidade', label: 'Viabilidade', icone: '🧭' },
     { id: 'notificacoes', label: 'Ajustes', icone: '⚙️' },
   ];
+
+  // Link compartilhado: mostra apenas a visualização somente-leitura do imóvel.
+  if (compartilhado) {
+    return <SharedPropertyView payload={compartilhado} />;
+  }
 
   return (
     <div className="min-h-screen">
