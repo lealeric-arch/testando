@@ -89,7 +89,15 @@ const T=THREE, lerp=(a,b,t)=>a+(b-a)*t, clamp=(v,a,b)=>v<a?a:(v>b?b:v);
 // ---------- renderer / scene ----------
 const canvas=document.getElementById("c");
 const LOWQ = !!(window.matchMedia && matchMedia("(pointer:coarse)").matches); // phones/tablets = lighter
-const renderer=new T.WebGLRenderer({canvas, antialias:!LOWQ, powerPreference:"high-performance"});
+let renderer;
+try {
+  renderer=new T.WebGLRenderer({canvas, antialias:!LOWQ, powerPreference:"high-performance"});
+  if(!renderer || !renderer.getContext()) throw new Error("no webgl context");
+} catch(err) {
+  const o=document.getElementById("ovl");
+  if(o) o.innerHTML='<h1>3D indisponível</h1><p>Seu navegador não conseguiu iniciar o WebGL 3D neste aparelho. Tente um Chrome/Edge atualizado com a aceleração de hardware ligada — ou jogue a versão 2D do Enduro 2026 (index.html).</p>';
+  return;
+}
 renderer.setPixelRatio(LOWQ ? 1 : Math.min(devicePixelRatio||1, 1.5));
 renderer.toneMapping=T.ACESFilmicToneMapping; renderer.toneMappingExposure=1.15; renderer.outputEncoding=T.sRGBEncoding;
 const scene=new T.Scene();
@@ -380,6 +388,8 @@ let camPos=new T.Vector3(), lookAt=new T.Vector3();
 const MAXV=0.16;
 function start(){ started=true; document.getElementById("ovl").style.display="none"; }
 document.getElementById("startBtn").addEventListener("click",start);
+document.getElementById("ovl").addEventListener("click",()=>{ if(!started) start(); });
+document.getElementById("ovl").addEventListener("touchstart",(e)=>{ if(!started){ start(); e.preventDefault(); } },{passive:false});
 canvas.addEventListener("touchstart",()=>{ if(!started)start(); },{passive:true});
 const msg=document.getElementById("msg"); let msgT=0;
 function flash(t,c){ msg.textContent=t; msg.style.color=c||"#7fffb0"; msg.style.opacity=1; msgT=1.1; }
