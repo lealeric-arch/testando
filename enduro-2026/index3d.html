@@ -166,6 +166,71 @@ const neonLights=[], neonMeshes=[];
     const light=new T.PointLight(col,1.2,60,2); light.position.copy(pl.position); scene.add(light); neonLights.push(light); }
 })();
 
+// ---------- sidewalks ----------
+function sidewalk(side){ const N=400,P=[],I=[],UV=[];
+  for(let i=0;i<=N;i++){ const s=sample(i/N);
+    const a=s.pos.clone().addScaledVector(s.right,side*(ROAD_W+0.2)); a.y+=0.30;
+    const b=s.pos.clone().addScaledVector(s.right,side*(ROAD_W+5)); b.y+=0.30;
+    P.push(a.x,a.y,a.z,b.x,b.y,b.z); const v=i/N*LEN/6; UV.push(0,v,1,v); }
+  for(let i=0;i<N;i++){const k=i*2;I.push(k,k+1,k+2,k+1,k+3,k+2);}
+  const g=new T.BufferGeometry(); g.setAttribute('position',new T.Float32BufferAttribute(P,3)); g.setAttribute('uv',new T.Float32BufferAttribute(UV,2)); g.setIndex(I); g.computeVertexNormals();
+  const m=new T.MeshStandardMaterial({color:0x3c414c,roughness:0.92,metalness:0.05,side:T.DoubleSide,emissive:0x15171d,emissiveIntensity:0.35});
+  scene.add(new T.Mesh(g,m));
+}
+sidewalk(-1); sidewalk(1);
+
+const dummy=new T.Object3D(), _col=new T.Color();
+const clothCols=[0xff5a5a,0x5a8cff,0x5affa0,0xffd24a,0xff8a3a,0xb14aff,0xffffff,0x2a3038,0x00eaff,0xff2d95];
+
+// ---------- pedestrians walking the sidewalks ----------
+const PEDN=70;
+const pedBody=new T.InstancedMesh(new T.CylinderGeometry(0.2,0.26,1.15,6), new T.MeshStandardMaterial({roughness:0.85,metalness:0.05}), PEDN);
+const pedHead=new T.InstancedMesh(new T.SphereGeometry(0.2,8,6), new T.MeshStandardMaterial({color:0xe3b48c,roughness:0.7}), PEDN);
+pedBody.frustumCulled=false; pedHead.frustumCulled=false; scene.add(pedBody); scene.add(pedHead);
+const peds=[];
+for(let i=0;i<PEDN;i++){ const side=i%2?1:-1;
+  peds.push({u:Math.random(), side, lane:1.0+Math.random()*3.2, dir:Math.random()<0.5?1:-1, spd:0.0018+Math.random()*0.004, ph:Math.random()*6.28});
+  pedBody.setColorAt(i,_col.setHex(clothCols[(Math.random()*clothCols.length)|0])); }
+pedBody.instanceColor.needsUpdate=true;
+
+// ---------- grandstands with cheering fans ----------
+const STANDS=[0.07,0.22,0.41,0.58,0.75,0.90], ROWS=5, COLS=12, FANS=STANDS.length*ROWS*COLS;
+const fanMesh=new T.InstancedMesh(new T.BoxGeometry(0.5,0.62,0.5), new T.MeshStandardMaterial({roughness:0.85,metalness:0.05,emissive:0x0a0a0a,emissiveIntensity:0.15}), FANS);
+fanMesh.frustumCulled=false; scene.add(fanMesh);
+const fans=[]; let si=0;
+for(const u0 of STANDS){ const side=(si%2)?1:-1, s=sample(u0);
+  const sw=COLS*0.85+2, sh=ROWS*0.75+1.5, sdep=ROWS*0.72+2;
+  const st=new T.Mesh(new T.BoxGeometry(sw,0.7,sdep), new T.MeshStandardMaterial({color:0x262b35,roughness:0.9,metalness:0.1}));
+  const sbase=s.pos.clone().addScaledVector(s.right, side*(ROAD_W+2+sdep/2));
+  st.position.set(sbase.x, s.pos.y+sh/2, sbase.z);
+  st.lookAt(s.pos.x, s.pos.y+sh/2, s.pos.z); st.rotation.x+=-0.5; scene.add(st);
+  // banner
+  const ban=new T.Mesh(new T.PlaneGeometry(sw,1.4), new T.MeshBasicMaterial({color:si%2?0x00eaff:0xff2d95, side:T.DoubleSide}));
+  const bb=s.pos.clone().addScaledVector(s.right, side*(ROAD_W+2.5)); ban.position.set(bb.x, s.pos.y+sh+1.4, bb.z); ban.lookAt(s.pos.x, ban.position.y, s.pos.z); scene.add(ban);
+  for(let r=0;r<ROWS;r++)for(let c=0;c<COLS;c++){
+    const along=(c-COLS/2)*0.85, back=(ROAD_W+2.4)+r*0.72, up=1.2+r*0.72;
+    const pos=s.pos.clone().addScaledVector(s.tan, along).addScaledVector(s.right, side*back); pos.y+=up;
+    fans.push({x:pos.x,y:pos.y,z:pos.z,ph:(r*0.6+c*0.35)});
+    fanMesh.setColorAt(fans.length-1, _col.setHex(clothCols[(Math.random()*clothCols.length)|0])); }
+  si++;
+}
+fanMesh.instanceColor.needsUpdate=true;
+
+function updatePeople(){
+  for(let i=0;i<peds.length;i++){ const p=peds[i]; p.u=((p.u+p.dir*p.spd*(1/60))%1+1)%1;
+    const s=sample(p.u), off=p.side*(ROAD_W+p.lane);
+    const bx=s.pos.x+s.right.x*off, bz=s.pos.z+s.right.z*off, by=s.pos.y+0.3;
+    const step=Math.abs(Math.sin(clock*6+p.ph))*0.08, ang=Math.atan2(s.tan.x*p.dir, s.tan.z*p.dir);
+    dummy.rotation.set(0,ang,0);
+    dummy.position.set(bx,by+0.75+step,bz); dummy.updateMatrix(); pedBody.setMatrixAt(i,dummy.matrix);
+    dummy.position.set(bx,by+1.5+step,bz); dummy.updateMatrix(); pedHead.setMatrixAt(i,dummy.matrix); }
+  pedBody.instanceMatrix.needsUpdate=true; pedHead.instanceMatrix.needsUpdate=true;
+  dummy.rotation.set(0,0,0);
+  for(let i=0;i<fans.length;i++){ const f=fans[i], bob=Math.max(0,Math.sin(clock*3+f.ph))*0.5;
+    dummy.position.set(f.x,f.y+bob,f.z); dummy.updateMatrix(); fanMesh.setMatrixAt(i,dummy.matrix); }
+  fanMesh.instanceMatrix.needsUpdate=true;
+}
+
 // ---------- realistic 2026 sports car ----------
 function makeCar(color, police){
   const g=new T.Group();
@@ -373,6 +438,9 @@ function frame(now){
       if(started&&rel<0.006&&rel>-0.02&&Math.abs(offset-pk.off)<0.45){ pk.active=false; pk.t=6; nitro=Math.min(1,nitro+0.35); flash("NITRO +","#7ab8ff"); }
     } else { pk.mesh.visible=false; pk.glow.visible=false; pk.t-=dt; if(pk.t<=0) pk.active=true; }
   }
+
+  // people (pedestrians walking + fans cheering)
+  updatePeople();
 
   // HUD
   document.getElementById("kmh").textContent=Math.round(speedPct*320);
