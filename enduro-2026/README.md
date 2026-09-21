@@ -66,6 +66,32 @@ No **menu**, `Enter` abre a **garagem**; nela use `←` `→` para trocar de car
 - **Recorde** salvo localmente (melhor dia + pontuação).
 - Controles de **toque** automáticos no celular.
 
+## Versão 3D — ENDURO 2026 · CARNAGE ([`index3d.html`](./index3d.html))
+
+3D real em WebGL (Three.js embutido, roda offline). Abra o arquivo e toque/clique
+em **ACELERAR** para começar.
+
+- **Pista infinita e contínua**: traçado procedural que nunca fecha o loop — a
+  estrada, as calçadas, os prédios, o trânsito e os pedestres são gerados e
+  reciclados à frente do jogador o tempo todo.
+- **7 dias de corrida, 3 minutos cada**: a cada dia o ambiente muda —
+  *noite, amanhecer, dia, entardecer, chuva, neblina e neve* — com céu, névoa,
+  luzes e clima próprios. Ao fim do 7º dia entra a tela de fim com pontuação e
+  **recorde** salvo localmente.
+- **Pegada Carmageddon (humor negro estilizado)**: **atropele pedestres**
+  (+50, com respingo de sangue em partículas vermelhas) e **destrua carros**
+  (+120) para somar pontos, encadeando **combos**.
+- **Nitro no caminho**: pegue os cristais azuis para recarregar o turbo
+  (`Shift` / botão N₂O).
+- **Câmera de perseguição** com o carro posicionado bem embaixo na tela,
+  sombras em tempo real no desktop, faróis, letreiros neon e **minimapa** com o
+  traçado à frente.
+- **Trilha synthwave** sintetizada (WebAudio, sem arquivos) e SFX de atropelo,
+  batida e nitro. `M` liga/desliga o som.
+
+Controles: `↑` acelera · `↓` freia · `← →` dirige · `Shift` nitro · `M` música ·
+`Enter` começa. No celular, botões na tela.
+
 ## Detalhes técnicos
 
 - Resolução interna `384×240` escalada com suavização, renderizador de estrada por
@@ -78,7 +104,7 @@ No **menu**, `Enter` abre a **garagem**; nela use `←` `→` para trocar de car
 | Arquivo | Função |
 |---|---|
 | `index.html` | Versão 2D pseudo-3D (canvas) — completa: garagem, polícia, drift, chuva |
-| `index3d.html` | **Versão 3D real (WebGL/Three.js)** — cidade noturna, câmera de perseguição, nitro; roda no PC e no celular. Three.js embutido (offline) |
+| `index3d.html` | **Versão 3D real (WebGL/Three.js)** — pista **infinita**, **7 dias** (3 min cada) com ambiente diferente por dia, pegada **Carmageddon** (atropele pedestres e destrua carros por pontos, com respingo de sangue), nitro no caminho, minimapa e trilha synthwave. Roda no PC e no celular. Three.js embutido (offline) |
 | `manifest.webmanifest` | Metadados do PWA |
 | `sw.js` | Service worker — cache offline |
 | `icon-192.png` / `icon-512.png` | Ícones do app |
