@@ -77,7 +77,8 @@ No **menu**, `Enter` abre a **garagem**; nela use `←` `→` para trocar de car
 
 | Arquivo | Função |
 |---|---|
-| `index.html` | O jogo inteiro (canvas + lógica + estilo) |
+| `index.html` | Versão 2D pseudo-3D (canvas) — completa: garagem, polícia, drift, chuva |
+| `index3d.html` | **Versão 3D real (WebGL/Three.js)** — cidade noturna, câmera de perseguição, nitro; roda no PC e no celular. Three.js embutido (offline) |
 | `manifest.webmanifest` | Metadados do PWA |
 | `sw.js` | Service worker — cache offline |
 | `icon-192.png` / `icon-512.png` | Ícones do app |
