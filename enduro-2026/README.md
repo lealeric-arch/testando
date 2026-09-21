@@ -47,8 +47,11 @@ No **menu**, `Enter` abre a **garagem**; nela use `←` `→` para trocar de car
   dos postes, poça de reflexo dos faróis e gotas diagonais.
 - **Nitro / turbo**: recarrega a cada ultrapassagem; solta chamas, alarga o FOV e
   enche a tela de *speed lines*. Ultrapassagens seguidas somam **COMBO**.
-- **Carros realistas**: traseira com para-choque, spoiler, vidro com reflexo,
-  lanternas com brilho, placa, escapamento duplo e pneus — com sombreamento.
+- **Carros realistas (sprite renderizado)**: um render 3D fotorrealista da
+  traseira de um esportivo é usado como sprite, escalado por distância e
+  **recolorido por matiz** para os 8 tons da garagem e para os rivais; a polícia
+  usa a mesma base em tom claro com giroflex. Fallback vetorial enquanto a
+  imagem decodifica.
 - **Som sintetizado** (WebAudio, sem arquivos): motor com RPM, sopro do nitro,
   sirene da polícia, apito de ultrapassagem e estrondo de batida.
 - **Cenário à beira da pista**: árvores, postes (que acendem à noite), outdoors,
