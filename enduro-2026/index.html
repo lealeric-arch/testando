@@ -99,12 +99,22 @@ const cv = document.getElementById("game");
 const ctx = cv.getContext("2d");
 cv.width = W; cv.height = H;
 
+// W,H are LOGICAL design units. The canvas backbuffer is supersampled to a much
+// higher pixel count (high-DPI) and the whole scene is drawn scaled by SUP, so
+// everything stays razor-sharp on big/4K displays while the code keeps using W,H.
+let SUP = 1;
 function resize() {
   const pad = 24;
-  let scale = Math.max(1, Math.floor(Math.min((innerWidth-pad)/W, (innerHeight-pad)/H)));
+  const scale = Math.max(1, Math.min((innerWidth-pad)/W, (innerHeight-pad)/H));
+  const dispW = Math.round(W*scale), dispH = Math.round(H*scale);
   const stage = document.getElementById("stage");
-  stage.style.width = cv.style.width = (W*scale)+"px";
-  stage.style.height = cv.style.height = (H*scale)+"px";
+  stage.style.width = cv.style.width = dispW+"px";
+  stage.style.height = cv.style.height = dispH+"px";
+  const dpr = Math.min(window.devicePixelRatio||1, 2);
+  const bw = Math.min(dispW*dpr, 1920);        // supersampled backbuffer width (cap for perf)
+  SUP = Math.max(1, bw / W);
+  cv.width  = Math.round(W*SUP);
+  cv.height = Math.round(H*SUP);
 }
 addEventListener("resize", resize); resize();
 
@@ -407,16 +417,25 @@ function buildMap() {
     if (hy<mapMinY) mapMinY=hy; if (hy>mapMaxY) mapMaxY=hy;
   }
 }
+const NEON_TXT=["NITRO","TURBO","2026","N2O","SPEED","CLUB","DRIFT","NEON","MAX","GO"];
+const NEON_COL=["#ff2d95","#00eaff","#ffd23f","#7cff4f","#b14aff","#ff6a2a","#39ff14"];
 function addScenery() {
-  const BT=["ENDURO","NITRO","TURBO","2026","N²O"];
   for(let i=0;i<segments.length;i++){
     const s=segments[i]; s.sprites=[];
-    if (i%10===0) s.sprites.push({type:"pole", offset:1.28});
-    if (i%10===5) s.sprites.push({type:"pole", offset:-1.28});
-    if (rnd()<0.22) s.sprites.push({type: rnd()<0.65?"tree":"bush", offset:(rnd()<0.5?-1:1)*(1.5+rnd()*1.8)});
-    if (rnd()<0.16) s.sprites.push({type:"tree", offset:(rnd()<0.5?-1:1)*(2.0+rnd()*2.2)});
-    if (i%46===22) s.sprites.push({type:"billboard", offset:(rnd()<0.5?-1:1)*1.55, text:BT[Math.floor(rnd()*BT.length)]});
-    if (rnd()<0.06) s.sprites.push({type:"building", offset:(rnd()<0.5?-1:1)*(2.6+rnd()*1.8), h:0.7+rnd()*1.1, c:Math.floor(rnd()*4)});
+    // dense city buildings hugging both sides — an urban canyon
+    if (i%4===0) s.sprites.push({type:"building", offset:-(1.32+rnd()*0.85), h:1.3+rnd()*2.6, c:Math.floor(rnd()*5), win:Math.floor(rnd()*3)});
+    if (i%4===2) s.sprites.push({type:"building", offset:(1.32+rnd()*0.85), h:1.3+rnd()*2.6, c:Math.floor(rnd()*5), win:Math.floor(rnd()*3)});
+    // a taller back row for skyline depth
+    if (rnd()<0.5) s.sprites.push({type:"building", offset:(rnd()<0.5?-1:1)*(2.5+rnd()*1.7), h:1.8+rnd()*2.8, c:Math.floor(rnd()*5), win:Math.floor(rnd()*3)});
+    // street lights
+    if (i%9===0) s.sprites.push({type:"pole", offset:1.28});
+    if (i%9===4) s.sprites.push({type:"pole", offset:-1.28});
+    // glowing neon signs on the near buildings
+    if (i%11===6) s.sprites.push({type:"neon", offset:(rnd()<0.5?-1:1)*(1.28+rnd()*0.35), text:NEON_TXT[Math.floor(rnd()*NEON_TXT.length)], col:NEON_COL[Math.floor(rnd()*NEON_COL.length)], vy:0.6+rnd()*1.4});
+    // occasional big branded billboard
+    if (i%40===18) s.sprites.push({type:"billboard", offset:(rnd()<0.5?-1:1)*1.5, text:"ENDURO"});
+    // sparse trees for variation
+    if (rnd()<0.05) s.sprites.push({type:"tree", offset:(rnd()<0.5?-1:1)*(2.4+rnd()*1.4)});
   }
 }
 function findSegment(z) {
@@ -806,13 +825,42 @@ function drawSprite(sp,seg,t,fog) {
     if (unit>3 && sp.text){ ctx.fillStyle="#fff"; ctx.font=`800 ${Math.max(6,unit*0.7)|0}px Arial`; ctx.textAlign="center"; ctx.textBaseline="middle"; ctx.fillText(sp.text,gx,py0+bhei/2); }
     by=py0; bw2=bwid*0.6; bh=postH+bhei;
   } else if (sp.type==="building") {
-    const bh2=unit*3.4*(sp.h||1), bwid=unit*1.8;
-    const cols=["#3a4a6a","#4a3a5a","#5a4a3a","#3a5a5a"];
-    ctx.fillStyle=night?"#1a2030":cols[sp.c||0]; ctx.fillRect(gx-bwid/2,gy-bh2,bwid,bh2);
-    ctx.fillStyle=night?"rgba(255,230,140,0.85)":"rgba(200,220,255,0.5)";
-    const wr=Math.max(1,unit*0.18);
-    for(let yy=gy-bh2+wr*2; yy<gy-wr*2; yy+=wr*2.4) for(let xx=gx-bwid/2+wr; xx<gx+bwid/2-wr; xx+=wr*2.2) if(((xx+yy)|0)%3!==0) ctx.fillRect(xx,yy,wr,wr);
+    const bh2=unit*4.2*(sp.h||1), bwid=unit*2.0, bx0=gx-bwid/2;
+    const cols = night ? ["#141a2a","#1a1626","#101826","#161320","#0e1a20"]
+                       : ["#5a6478","#6a6076","#746a5a","#5a6a72","#66787e"];
+    const base=cols[sp.c||0];
+    const fgd=ctx.createLinearGradient(0,gy-bh2,0,gy);
+    fgd.addColorStop(0, base); fgd.addColorStop(1, shade(base, night?-6:-26));
+    ctx.fillStyle=fgd; ctx.fillRect(bx0, gy-bh2, bwid, bh2);
+    ctx.fillStyle= night?"rgba(90,120,200,0.14)":"rgba(255,255,255,0.12)";
+    ctx.fillRect(bx0, gy-bh2, Math.max(1,bwid*0.06), bh2);
+    if (unit>1.6) {
+      const wr=Math.max(1,unit*0.16), gapx=wr*2.0, gapy=wr*2.4;
+      const warm=["#ffd98a","#ffe6b0","#9fd0ff","#ffbf6a","#bfe0ff"];
+      let row=0;
+      for(let yy=gy-bh2+gapy; yy<gy-gapy; yy+=gapy){
+        let col=0;
+        for(let xx=bx0+gapx; xx<gx+bwid/2-wr; xx+=gapx){
+          if (night){ const on=(((xx*13+yy*7+(sp.win||0)*97)|0)%5)!==0; ctx.fillStyle= on ? warm[((row+col+(sp.win||0))|0)%warm.length] : "rgba(18,24,38,0.9)"; }
+          else ctx.fillStyle="rgba(180,205,235,0.55)";
+          ctx.fillRect(xx,yy,wr,wr*1.3); col++;
+        }
+        row++;
+      }
+    }
+    if (night && unit>1.2){ const bl=Math.floor(clock*2+gx)%2===0; ctx.fillStyle=bl?"rgba(255,60,60,0.95)":"rgba(120,20,20,0.6)"; ctx.fillRect(gx-Math.max(1,unit*0.08), gy-bh2-Math.max(1,unit*0.22), Math.max(1,unit*0.16), Math.max(1,unit*0.22)); }
+    if (night){ ctx.globalAlpha=0.10; ctx.fillStyle="#6a8cff"; ctx.fillRect(bx0-2, gy-bh2-2, bwid+4, bh2+4); ctx.globalAlpha=1; }
     by=gy-bh2; bw2=bwid*0.6; bh=bh2;
+  } else if (sp.type==="neon") {
+    const nw=unit*1.9, nh=unit*0.7, postH=unit*(1.2+(sp.vy||1));
+    const nx=gx, ny=gy-postH, col=sp.col||"#ff2d95";
+    ctx.fillStyle="#2a2f3a"; ctx.fillRect(gx-unit*0.05, gy-postH, unit*0.1, postH);
+    if (night){ const gl=ctx.createRadialGradient(nx,ny,0,nx,ny,nw*0.95); gl.addColorStop(0,hexA(col,0.6)); gl.addColorStop(1,hexA(col,0)); ctx.fillStyle=gl; ctx.beginPath(); ctx.ellipse(nx,ny,nw*0.95,nh*1.7,0,0,Math.PI*2); ctx.fill(); }
+    ctx.fillStyle="#0c0f16"; ctx.fillRect(nx-nw/2,ny-nh/2,nw,nh);
+    ctx.strokeStyle=col; ctx.lineWidth=Math.max(1,unit*0.09); ctx.strokeRect(nx-nw/2+1,ny-nh/2+1,nw-2,nh-2);
+    if (unit>2.2 && sp.text){ ctx.fillStyle=night?"#ffffff":col; ctx.font=`800 ${Math.max(6,nh*0.72)|0}px Arial`; ctx.textAlign="center"; ctx.textBaseline="middle"; ctx.shadowColor=col; ctx.shadowBlur=night?unit*1.2:0; ctx.fillText(sp.text,nx,ny); ctx.shadowBlur=0; }
+    if (wet){ const rg=ctx.createLinearGradient(0,gy,0,gy+unit*2.2); rg.addColorStop(0,hexA(col,0.4)); rg.addColorStop(1,hexA(col,0)); ctx.fillStyle=rg; ctx.fillRect(nx-nw*0.4, gy, nw*0.8, unit*2.2); }
+    by=ny-nh; bw2=nw*0.7; bh=postH+nh;
   }
   if (fog>0.02){ ctx.globalAlpha=Math.min(0.9,fog); ctx.fillStyle=t.fog; ctx.fillRect(bx-bw2,by,bw2*2,bh+2); ctx.globalAlpha=1; }
   ctx.restore();
@@ -821,8 +869,9 @@ function drawSprite(sp,seg,t,fog) {
 let frameCounter=0;
 function render() {
   frameCounter++;
+  ctx.setTransform(SUP,0,0,SUP,0,0);   // supersample: draw the logical scene into the hi-res backbuffer
   const t=curTheme();
-  wet = !!t.wet;
+  wet = !!t.wet || PHASE_ORDER[phaseIdx]==="night";   // wet-look asphalt at night too (Underground vibe)
   const baseSeg=findSegment(player.z);
   const basePercent=(player.z%SEG_LEN)/SEG_LEN;
   const playerY=baseSeg.p1.world.y+(baseSeg.p2.world.y-baseSeg.p1.world.y)*basePercent;

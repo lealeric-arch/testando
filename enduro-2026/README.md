@@ -54,8 +54,13 @@ No **menu**, `Enter` abre a **garagem**; nela use `←` `→` para trocar de car
   imagem decodifica.
 - **Som sintetizado** (WebAudio, sem arquivos): motor com RPM, sopro do nitro,
   sirene da polícia, apito de ultrapassagem e estrondo de batida.
-- **Cenário à beira da pista**: árvores, postes (que acendem à noite), outdoors,
-  prédios com janelas iluminadas e nuvens — com fog de distância e oclusão.
+- **Cidade noturna estilo Underground**: corredor de arranha-céus dos dois lados
+  com janelas iluminadas coloridas, luzes de topo piscando, **letreiros neon** com
+  halo e reflexo no asfalto molhado, postes acesos e fog de distância.
+- **Renderização em alta resolução (supersampling / alta-DPI)**: o mundo é
+  desenhado num backbuffer muito maior que a resolução lógica e escalado para a
+  tela, ficando nítido em monitores grandes/4K (limitado pela resolução do
+  próprio monitor).
 - **Ciclo de dia e clima**: *amanhecer, dia, entardecer, noite, chuva, neblina e
   neve*, cada fase com paleta própria.
 - **Recorde** salvo localmente (melhor dia + pontuação).
