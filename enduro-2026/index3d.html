@@ -386,7 +386,13 @@ bind("bL","left");bind("bR","right");bind("bG","gas");bind("bB","brake");bind("b
 let started=false, u=0, speed=0, offset=0, nitro=0.6, boosting=false, day=1, position=1;
 let camPos=new T.Vector3(), lookAt=new T.Vector3();
 const MAXV=0.16;
-function start(){ started=true; document.getElementById("ovl").style.display="none"; }
+function resetControls(){ K.left=K.right=K.gas=K.brake=K.boost=false; }
+function start(){ started=true; speed=0; resetControls(); document.getElementById("ovl").style.display="none"; }
+// safety: never let a stuck key/touch drive the car by itself
+addEventListener("blur", resetControls);
+document.addEventListener("visibilitychange",()=>{ if(document.hidden) resetControls(); });
+addEventListener("touchend",(e)=>{ if(!e.touches || e.touches.length===0) resetControls(); },{passive:true});
+addEventListener("touchcancel",resetControls,{passive:true});
 document.getElementById("startBtn").addEventListener("click",start);
 document.getElementById("ovl").addEventListener("click",()=>{ if(!started) start(); });
 document.getElementById("ovl").addEventListener("touchstart",(e)=>{ if(!started){ start(); e.preventDefault(); } },{passive:false});
