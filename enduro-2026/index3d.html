@@ -68,7 +68,7 @@
 <div id="ovl">
   <h1>ENDURO 2026 · 3D</h1>
   <p>Racer 3D (WebGL) estilo Need for Speed. A cidade muda de clima e de hora como no Enduro original. Pegue o <b>nitro</b> na pista e ultrapasse os rivais.</p>
-  <p>Teclado: <b>↑</b> acelera · <b>↓</b> freia · <b>← →</b> dirige · <b>Shift</b> nitro<br>Celular: use os botões na tela.</p>
+  <p>Teclado: <b>↑</b> acelera · <b>↓</b> freia · <b>← →</b> dirige · <b>Shift</b> nitro · <b>M</b> música<br>Celular: use os botões na tela. 🎵 com som!</p>
   <button class="go" id="startBtn">▶ CORRER</button>
   <div class="hint">3D de verdade no navegador · roda no PC e no celular</div>
 </div>
@@ -368,7 +368,8 @@ function drawMap(){
 
 // ---------- input ----------
 const K={left:false,right:false,gas:false,brake:false,boost:false};
-addEventListener("keydown",e=>{const c=e.code;
+addEventListener("keydown",e=>{const c=e.code; initAudio();
+  if(c==="KeyM"){ toggleMute(); e.preventDefault(); return; }
   if(c==="ArrowLeft"||c==="KeyA")K.left=1;else if(c==="ArrowRight"||c==="KeyD")K.right=1;
   else if(c==="ArrowUp"||c==="KeyW")K.gas=1;else if(c==="ArrowDown"||c==="KeyS")K.brake=1;
   else if(c==="ShiftLeft"||c==="ShiftRight")K.boost=1;else if(c==="Enter"&&!started)start();else return; e.preventDefault();});
@@ -377,17 +378,57 @@ addEventListener("keyup",e=>{const c=e.code;
   else if(c==="ArrowUp"||c==="KeyW")K.gas=0;else if(c==="ArrowDown"||c==="KeyS")K.brake=0;
   else if(c==="ShiftLeft"||c==="ShiftRight")K.boost=0;else return; e.preventDefault();});
 function bind(id,p){const el=document.getElementById(id);if(!el)return;
-  const on=e=>{K[p]=1;e.preventDefault()},off=e=>{K[p]=0;e.preventDefault()};
+  const on=e=>{initAudio();K[p]=1;e.preventDefault()},off=e=>{K[p]=0;e.preventDefault()};
   el.addEventListener("touchstart",on,{passive:false});el.addEventListener("touchend",off,{passive:false});el.addEventListener("touchcancel",off,{passive:false});
   el.addEventListener("mousedown",on);el.addEventListener("mouseup",off);el.addEventListener("mouseleave",off);}
 bind("bL","left");bind("bR","right");bind("bG","gas");bind("bB","brake");bind("bN","boost");
+
+// ---------- music (synthwave loop, WebAudio, no files) ----------
+let AC=null, aMaster=null, musicOn=true, musicTimer=null, mStep=0, mNext=0;
+function mtof(m){ return 440*Math.pow(2,(m-69)/12); }
+function initAudio(){
+  if(AC){ if(AC.state==="suspended") AC.resume(); return; }
+  try{
+    AC=new (window.AudioContext||window.webkitAudioContext)();
+    aMaster=AC.createGain(); aMaster.gain.value=musicOn?0.45:0.0001; aMaster.connect(AC.destination);
+    startMusic();
+  }catch(e){ AC=null; }
+}
+function tone(freq,t,dur,type,gain,glideTo){
+  const o=AC.createOscillator(); o.type=type||"sawtooth"; o.frequency.setValueAtTime(freq,t);
+  if(glideTo) o.frequency.exponentialRampToValueAtTime(glideTo,t+dur);
+  const g=AC.createGain(); g.gain.setValueAtTime(0.0001,t); g.gain.exponentialRampToValueAtTime(gain,t+0.02); g.gain.exponentialRampToValueAtTime(0.0001,t+dur);
+  o.connect(g); g.connect(aMaster); o.start(t); o.stop(t+dur+0.03);
+}
+function kick(t){ const o=AC.createOscillator(); o.frequency.setValueAtTime(160,t); o.frequency.exponentialRampToValueAtTime(48,t+0.11);
+  const g=AC.createGain(); g.gain.setValueAtTime(0.9,t); g.gain.exponentialRampToValueAtTime(0.001,t+0.18); o.connect(g); g.connect(aMaster); o.start(t); o.stop(t+0.2); }
+function hat(t,open){ const len=open?0.12:0.04, n=AC.createBuffer(1,Math.max(1,AC.sampleRate*len),AC.sampleRate), d=n.getChannelData(0);
+  for(let i=0;i<d.length;i++)d[i]=Math.random()*2-1;
+  const s=AC.createBufferSource(); s.buffer=n; const hp=AC.createBiquadFilter(); hp.type="highpass"; hp.frequency.value=7500;
+  const g=AC.createGain(); g.gain.setValueAtTime(open?0.16:0.12,t); g.gain.exponentialRampToValueAtTime(0.001,t+len); s.connect(hp); hp.connect(g); g.connect(aMaster); s.start(t); }
+const TEMPO=126, SP=(60/TEMPO)/4;                 // seconds per 16th step
+const ROOTS=[45,41,48,43], CH=[[57,60,64],[53,57,60],[60,64,67],[55,59,62]]; // Am F C G
+function schedStep(step,t){
+  const bar=Math.floor(step/16)%4, ls=step%16, ch=CH[bar], root=ROOTS[bar];
+  if(ls%4===0) kick(t);
+  if(ls%2===1) hat(t,ls%8===7);
+  if(ls===0||ls===6||ls===10) tone(mtof(root),t,0.30,"square",0.15,mtof(root)*0.5);
+  if(ls%2===0) tone(mtof(ch[(ls/2)%3]),t,0.15,"sawtooth",0.045);
+  if(ls===0) tone(mtof(ch[2]+12),t,SP*6,"triangle",0.08);
+}
+function startMusic(){ mStep=0; mNext=AC.currentTime+0.1; clearInterval(musicTimer);
+  musicTimer=setInterval(()=>{ if(!AC) return; while(mNext<AC.currentTime+0.13){ schedStep(mStep,mNext); mNext+=SP; mStep=(mStep+1)%64; } },25); }
+function sfx(kind){ if(!AC) return; const t=AC.currentTime;
+  if(kind==="pass") tone(880,t,0.18,"triangle",0.22,1320);
+  else if(kind==="nitro") tone(520,t,0.22,"sawtooth",0.2,1500); }
+function toggleMute(){ musicOn=!musicOn; if(aMaster) aMaster.gain.setTargetAtTime(musicOn?0.45:0.0001, AC.currentTime, 0.05); }
 
 // ---------- state ----------
 let started=false, u=0, speed=0, offset=0, nitro=0.6, boosting=false, day=1, position=1;
 let camPos=new T.Vector3(), lookAt=new T.Vector3();
 const MAXV=0.16;
 function resetControls(){ K.left=K.right=K.gas=K.brake=K.boost=false; }
-function start(){ started=true; speed=0; resetControls(); document.getElementById("ovl").style.display="none"; }
+function start(){ started=true; speed=0; resetControls(); initAudio(); document.getElementById("ovl").style.display="none"; }
 // safety: never let a stuck key/touch drive the car by itself
 addEventListener("blur", resetControls);
 document.addEventListener("visibilitychange",()=>{ if(document.hidden) resetControls(); });
@@ -442,7 +483,7 @@ function frame(now){
     const ra=sample((r.u+0.004)%1); r.mesh.lookAt(ra.pos.x+rs.right.x*r.off*ROAD_W, rs.pos.y+0.2, ra.pos.z+rs.right.z*r.off*ROAD_W); r.mesh.rotateY(Math.PI);
     if(r.police&&r.mesh.userData.bar){ const on=Math.floor(now/120)%2===0; r.mesh.userData.bar.children[0].material.emissiveIntensity=on?4:0.4; r.mesh.userData.bar.children[1].material.emissiveIntensity=on?0.4:4; }
     const rel=loopedRel(r.u-u); if(rel>0) ahead++;
-    if(started&&!r._p&&rel<0&&rel>-0.02){ r._p=true; flash(r.police?"DESVIOU DA POLÍCIA!":"ULTRAPASSOU!", r.police?"#ff5a4a":"#7fffb0"); }
+    if(started&&!r._p&&rel<0&&rel>-0.02){ r._p=true; flash(r.police?"DESVIOU DA POLÍCIA!":"ULTRAPASSOU!", r.police?"#ff5a4a":"#7fffb0"); sfx("pass"); }
     if(rel>0.02) r._p=false;
   }
   position=1+ahead;
@@ -452,7 +493,7 @@ function frame(now){
     if(pk.active){ const ps=sample(pk.u); pk.mesh.position.set(ps.pos.x+ps.right.x*pk.off*ROAD_W, ps.pos.y+1.4+Math.sin(clock*3+pk.u*20)*0.3, ps.pos.z+ps.right.z*pk.off*ROAD_W);
       pk.mesh.rotation.y+=dt*2.5; pk.glow.position.copy(pk.mesh.position); pk.glow.visible=true; pk.mesh.visible=true;
       const rel=loopedRel(pk.u-u);
-      if(started&&rel<0.006&&rel>-0.02&&Math.abs(offset-pk.off)<0.45){ pk.active=false; pk.t=6; nitro=Math.min(1,nitro+0.35); flash("NITRO +","#7ab8ff"); }
+      if(started&&rel<0.006&&rel>-0.02&&Math.abs(offset-pk.off)<0.45){ pk.active=false; pk.t=6; nitro=Math.min(1,nitro+0.35); flash("NITRO +","#7ab8ff"); sfx("nitro"); }
     } else { pk.mesh.visible=false; pk.glow.visible=false; pk.t-=dt; if(pk.t<=0) pk.active=true; }
   }
 
