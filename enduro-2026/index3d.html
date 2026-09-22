@@ -16,20 +16,26 @@
   *{box-sizing:border-box;margin:0;padding:0}
   html,body{height:100%;background:#05060f;color:#eaf0ff;font-family:Arial,Helvetica,sans-serif;overflow:hidden;-webkit-user-select:none;user-select:none;touch-action:none}
   #c{position:fixed;inset:0;width:100%;height:100%;display:block}
+  /* color grade estilo GTA: vinheta + leve dessaturação e contraste */
+  #grade{position:fixed;inset:0;z-index:9;pointer-events:none;
+    background:radial-gradient(ellipse at 50% 44%,rgba(0,0,0,0) 50%,rgba(10,6,0,.26) 80%,rgba(6,4,0,.52) 100%);
+    -webkit-backdrop-filter:saturate(.9) contrast(1.07) brightness(1.02);backdrop-filter:saturate(.9) contrast(1.07) brightness(1.02)}
   #hud{position:fixed;inset:0;pointer-events:none;z-index:10}
-  .lbl{position:absolute;font-weight:800;text-shadow:0 2px 6px rgba(0,0,0,.85),0 0 2px rgba(0,0,0,.9)}
+  .lbl{position:absolute;font-weight:800;text-shadow:0 2px 6px rgba(0,0,0,.9),0 0 2px rgba(0,0,0,.95)}
   #spd{right:20px;bottom:16px;text-align:right}
   #spd .n{font-size:54px;line-height:1;color:#fff}
   #spd .u{font-size:13px;color:#8ad0ff;letter-spacing:2px}
   #spd .g{font-size:14px;color:#ffe08a;letter-spacing:1px}
-  #top{left:0;right:0;top:10px;text-align:center;font-size:15px;color:#c8d4ff;letter-spacing:2px}
-  #score{left:16px;top:34px;font-size:22px;color:#ffd24a}
-  #day{left:16px;top:12px;font-size:14px;color:#8ad0ff;letter-spacing:1px}
-  #nit{left:16px;bottom:20px;width:150px}
+  #top{left:0;right:0;top:12px;text-align:center;font-size:14px;color:#dfe6ff;letter-spacing:3px;opacity:.9}
+  #cash{right:18px;top:10px;font-size:34px;color:#7be05a;font-weight:900;letter-spacing:1px;font-family:"Arial Black",Arial,sans-serif}
+  #wanted{right:18px;top:52px;font-size:22px;letter-spacing:4px;color:#ffcf33}
+  #wanted .off{color:rgba(255,255,255,.26)}
+  #day{left:16px;top:12px;font-size:14px;color:#cfe0ff;letter-spacing:1px}
+  #nit{left:16px;bottom:180px;width:150px}
   #nit .bar{height:12px;background:rgba(8,12,28,.6);border:1px solid rgba(140,190,255,.5);border-radius:6px;overflow:hidden;margin-top:3px}
   #nit .fill{height:100%;width:60%;background:linear-gradient(90deg,#2a6bff,#9fe0ff)}
   #nit .t{font-size:12px;color:#8ad0ff;letter-spacing:2px}
-  #map{position:absolute;right:14px;top:40px;width:112px;height:112px;background:rgba(6,8,22,.55);border:1px solid rgba(120,160,255,.5);border-radius:8px}
+  #map{position:absolute;left:16px;bottom:16px;width:154px;height:154px;background:rgba(6,10,18,.62);border:2px solid rgba(18,22,32,.95);border-radius:16px;box-shadow:0 6px 20px rgba(0,0,0,.55)}
   #msg{left:0;right:0;top:30%;text-align:center;font-size:30px;color:#7fffb0;opacity:0;transition:opacity .18s}
   #combo{left:0;right:0;top:44%;text-align:center;font-size:20px;color:#ff5a4a;opacity:0}
   #ovl{position:fixed;inset:0;z-index:20;display:flex;align-items:center;justify-content:center;flex-direction:column;
@@ -47,16 +53,21 @@
   #bL{left:20px;bottom:120px}#bR{left:120px;bottom:120px}
   #bB{right:120px}#bG{right:20px;background:rgba(50,180,90,.32);border-color:rgba(120,255,150,.6)}
   #bN{right:64px;bottom:118px;width:70px;height:70px;font-size:15px;background:rgba(50,110,255,.4);border-color:rgba(140,200,255,.7)}
-  @media(pointer:coarse){#touch{display:block}}
+  @media(pointer:coarse){#touch{display:block}
+    #map{left:12px;top:40px;bottom:auto;width:104px;height:104px}
+    #nit{left:auto;right:16px;bottom:210px;width:120px}
+    #cash{font-size:26px}#wanted{font-size:18px;top:44px}}
 </style>
 </head>
 <body>
 <canvas id="c"></canvas>
+<div id="grade"></div>
 <div id="hud">
   <div id="day" class="lbl">DIA 1/7 · 3:00</div>
-  <div id="top" class="lbl">NOITE</div>
-  <div id="score" class="lbl">0</div>
-  <canvas id="map" width="112" height="112"></canvas>
+  <div id="top" class="lbl">AMANHECER</div>
+  <div id="cash" class="lbl">$0</div>
+  <div id="wanted" class="lbl"><span class="off">★★★★★</span></div>
+  <canvas id="map" width="154" height="154"></canvas>
   <div id="spd" class="lbl"><div class="g" id="gear">MARCHA 1</div><span class="n" id="kmh">0</span><div class="u">KM/H</div></div>
   <div id="nit" class="lbl"><div class="t">NITRO</div><div class="bar"><div class="fill" id="nfill"></div></div></div>
   <div id="msg" class="lbl">+50</div>
@@ -67,8 +78,8 @@
   <div id="bB" class="pad">■</div><div id="bG" class="pad">▲</div><div id="bN" class="pad">N₂O</div>
 </div>
 <div id="ovl">
-  <h1>ENDURO 2026 · CARNAGE</h1>
-  <p>Corrida urbana de 7 dias em pista infinita. Atropele pedestres e destrua carros para somar pontos, pegue o nitro e sobreviva a cada ambiente.</p>
+  <h1>ENDURO 2026 · CITY</h1>
+  <p>Cidade aberta em pista infinita, 7 dias — cada dia passa de <b>dia → tarde → noite</b> e tem seu próprio <b>clima</b>. Atropele, destrua carros e ganhe <b style="color:#7be05a">$</b>; o caos enche as <b style="color:#ffcf33">★ estrelas</b> e a polícia vem atrás.</p>
   <p>Teclado: <b>↑</b> acelera · <b>↓</b> freia · <b>← →</b> dirige · <b>Shift</b> nitro · <b>M</b> música<br>Celular: botões na tela. 🎵 com som</p>
   <button class="go" id="startBtn">▶ ACELERAR</button>
   <div class="hint">3D no navegador · roda no PC e no celular · humor negro estilizado</div>
@@ -1403,7 +1414,10 @@ function makeCar(color,police){ const g=new T.Group();
 const rivalColors=[0xe83a2c,0x2f7ae0,0xf2b81e,0x22c4a0,0xff7a1e,0x9a4ae0];
 const TPOOL=[]; const TN=7;
 for(let i=0;i<TN;i++){ const police=i%4===0; TPOOL.push({mesh:makeCar(police?0xf2f4f8:rivalColors[i%rivalColors.length],police),seg:16+i*13,off:(srand(i*7)*2-1)*0.7,vspeed:3+srand(i*3)*7,dead:0,spin:0,police}); }
-function reseedTraffic(o){ o.seg=playerSeg+48+Math.random()*48; o.off=(Math.random()*2-1)*0.72; o.vspeed=3+Math.random()*7; o.dead=0; o.spin=0; o.mesh.visible=true; o.mesh.scale.set(1,1,1); }
+function reseedTraffic(o){
+  if(o.police && wanted>=2){ o.seg=playerSeg+8+Math.random()*22; o.vspeed=8+wanted*1.7+Math.random()*3; o.off=(Math.random()*2-1)*0.6; } // polícia perseguindo
+  else { o.seg=playerSeg+48+Math.random()*48; o.vspeed=3+Math.random()*7; o.off=(Math.random()*2-1)*0.72; }
+  o.dead=0; o.spin=0; o.mesh.visible=true; o.mesh.scale.set(1,1,1); }
 function updateTraffic(dt){ for(const o of TPOOL){
     if(o.dead){ o.spin+=dt; o.mesh.rotation.y+=dt*7; o.mesh.rotation.z+=dt*3; o.mesh.scale.multiplyScalar(Math.pow(0.25,dt));
       if(o.mesh.scale.x<0.15||o.spin>1.5) reseedTraffic(o); continue; }
@@ -1478,51 +1492,65 @@ const blobTex=(function(){ const s=64,cv=document.createElement("canvas");cv.wid
 const blob=new T.Mesh(new T.PlaneGeometry(5,6), new T.MeshBasicMaterial({map:blobTex,transparent:true,depthWrite:false})); blob.rotation.x=-Math.PI/2; scene.add(blob);
 
 // ---------- phases (7 days, one env each) ----------
-const PHASES=[
- {name:"NOITE",     sky:0x05060f, fog:0x0a0e22, hemiT:0x3a4a72, hemiB:0x0a0c16, amb:0x445070, sunC:0x9fb6ff, sunI:0.55, night:1.0,  near:50, far:460},
- {name:"AMANHECER", sky:0x3a2a5e, fog:0x9a6a8e, hemiT:0x6a5a8a, hemiB:0x2a2438, amb:0x6a5a7a, sunC:0xffd0b0, sunI:0.7,  night:0.35, near:60, far:520},
- {name:"DIA",       sky:0x6fb0e8, fog:0xbfe6ff, hemiT:0x9fc0e8, hemiB:0x88a488, amb:0x8aa0c0, sunC:0xffffff, sunI:1.15, night:0.0,  near:90, far:900},
- {name:"ENTARDECER",sky:0x2a2050, fog:0xd07a4a, hemiT:0x7a5a6a, hemiB:0x30263a, amb:0x8a6a5a, sunC:0xffcc99, sunI:0.7,  night:0.45, near:60, far:520},
- {name:"CHUVA",     sky:0x161d2e, fog:0x33405c, hemiT:0x3a4a66, hemiB:0x10161e, amb:0x44506a, sunC:0x8fb0ff, sunI:0.45, night:0.85, near:40, far:340},
- {name:"NEBLINA",   sky:0x8a94a8, fog:0xb4bcca, hemiT:0xa6b0c0, hemiB:0x6a7280, amb:0x99a4b4, sunC:0xcfd8e8, sunI:0.7,  night:0.2,  near:20, far:210},
- {name:"NEVE",      sky:0x96a2c0, fog:0xd6e0f0, hemiT:0xc0ccdc, hemiB:0x8a94a8, amb:0xb0bcd0, sunC:0xeef4ff, sunI:0.95, night:0.1,  near:50, far:520},
+// cada DIA roda um ciclo de luz completo: amanhecer → dia → tarde → entardecer → noite
+const TOD=[
+ {t:0.00,name:"AMANHECER", sky:0x2c3a66, fog:0x8a7a9a, near:50, far:520, hemiT:0x6a78a0, hemiB:0x2a2a38, amb:0x6a6480, sunC:0xffd0a0, sunI:0.75, night:0.42},
+ {t:0.20,name:"DIA",       sky:0x6fb0e8, fog:0xcfe2e2, near:90, far:900, hemiT:0x9fc0e8, hemiB:0x88a488, amb:0x9fb2cc, sunC:0xfff2dd, sunI:1.20, night:0.0 },
+ {t:0.46,name:"TARDE",     sky:0x6a80aa, fog:0xc8c2b4, near:80, far:760, hemiT:0x8a90a8, hemiB:0x6a6068, amb:0x9a94a0, sunC:0xffdca0, sunI:0.98, night:0.14},
+ {t:0.64,name:"ENTARDECER",sky:0x3a2c54, fog:0xd07a4a, near:60, far:520, hemiT:0x7a5a6a, hemiB:0x30263a, amb:0x8a6a5a, sunC:0xff9a5a, sunI:0.72, night:0.5 },
+ {t:0.80,name:"NOITE",     sky:0x05060f, fog:0x0a0e22, near:45, far:460, hemiT:0x3a4a72, hemiB:0x0a0c16, amb:0x445070, sunC:0x9fb6ff, sunI:0.5,  night:1.0 },
+ {t:1.00,name:"NOITE",     sky:0x05060f, fog:0x0a0e22, near:45, far:460, hemiT:0x3a4a72, hemiB:0x0a0c16, amb:0x445070, sunC:0x9fb6ff, sunI:0.5,  night:1.0 },
 ];
-const DAY_DUR=180, TRANS=9;
+// clima próprio de cada dia (1..7)
+const WEATHER=["LIMPO","LIMPO","CHUVA","LIMPO","NEBLINA","CHUVA","NEVE"];
+const DAY_DUR=180;
 const _c1=new T.Color(),_c2=new T.Color(),_ct=new T.Color();
 function mix(a,b,t,out){ _c1.setHex(a);_c2.setHex(b); out.copy(_c1).lerp(_c2,t); return out; }
+function todIndex(tt){ for(let i=0;i<TOD.length-1;i++){ if(tt>=TOD[i].t && tt<=TOD[i+1].t) return i; } return TOD.length-2; }
 function applyPhase(dt){
   dayTime+=dt;
   if(dayTime>=DAY_DUR){ dayTime-=DAY_DUR; day++; }
-  const i=clamp(day-1,0,6), j=clamp(day,0,6);
-  let t = (day<7 && dayTime>DAY_DUR-TRANS) ? (dayTime-(DAY_DUR-TRANS))/TRANS : 0; t=t*t*(3-2*t);
-  const A=PHASES[i],B=PHASES[j];
-  mix(A.sky,B.sky,t,scene.background); mix(A.fog,B.fog,t,scene.fog.color);
-  scene.fog.near=lerp(A.near,B.near,t); scene.fog.far=lerp(A.far,B.far,t);
-  hemi.color.copy(mix(A.hemiT,B.hemiT,t,_ct)); hemi.groundColor.copy(mix(A.hemiB,B.hemiB,t,_ct));
-  amb.color.copy(mix(A.amb,B.amb,t,_ct)); sun.color.copy(mix(A.sunC,B.sunC,t,_ct)); sun.intensity=lerp(A.sunI,B.sunI,t);
-  const night=lerp(A.night,B.night,t);
-  const wet=((A.name==="CHUVA"?1:0)*(1-t))+((B.name==="CHUVA"?1:0)*t);
+  const tt=clamp(dayTime/DAY_DUR,0,0.99999);
+  const idx=todIndex(tt), A=TOD[idx], B=TOD[idx+1];
+  let f=(tt-A.t)/((B.t-A.t)||1); f=f*f*(3-2*f);
+  let near=lerp(A.near,B.near,f), far=lerp(A.far,B.far,f);
+  const night=lerp(A.night,B.night,f);
+  mix(A.sky,B.sky,f,scene.background); mix(A.fog,B.fog,f,scene.fog.color);
+  hemi.color.copy(mix(A.hemiT,B.hemiT,f,_ct)); hemi.groundColor.copy(mix(A.hemiB,B.hemiB,f,_ct));
+  amb.color.copy(mix(A.amb,B.amb,f,_ct)); sun.color.copy(mix(A.sunC,B.sunC,f,_ct)); sun.intensity=lerp(A.sunI,B.sunI,f);
+  // clima do dia
+  const w=WEATHER[clamp(day-1,0,6)]; let wet=0;
+  if(w==="CHUVA"){ wet=1; wMode=1; scene.fog.color.lerp(_c1.setHex(0x2a3550),0.55); scene.background.lerp(_c2.setHex(0x121a2a),0.4); far*=0.6; near*=0.8; sun.intensity*=0.55; }
+  else if(w==="NEVE"){ wet=0.5; wMode=2; scene.fog.color.lerp(_c1.setHex(0xdbe4f2),0.55); scene.background.lerp(_c2.setHex(0xb8c4dc),0.35); far*=0.75; sun.intensity*=0.85; }
+  else if(w==="NEBLINA"){ wMode=0; scene.fog.color.lerp(_c1.setHex(0xb4bcca),0.7); scene.background.lerp(_c2.setHex(0x9aa4b4),0.5); near=18; far=Math.min(far,205); sun.intensity*=0.7; }
+  else { wMode=0; }
+  scene.fog.near=near; scene.fog.far=far;
   roadMat.roughness=0.5-wet*0.42; roadMat.metalness=0.45+wet*0.5; roadMat.envMapIntensity=0.9+wet*1.4;
   for(const m of bMat) m.emissiveIntensity=0.12+night*1.05;
   for(const o of NPOOL) o.light.intensity=0.15+night*1.35;
   stars.material.opacity=clamp(night*1.2-0.2,0,1); moonDisc.material.opacity=clamp(night*1.3-0.1,0,1);
   headL.intensity=0.5+night*2.0;
-  const cur=(t<0.5?A:B).name; wMode = cur==="CHUVA"?1 : cur==="NEVE"?2 : 0;
-  $("top").textContent=(t<0.5?A.name:B.name);
+  $("top").textContent=A.name+(w!=="LIMPO"?" · "+w:"");
   return night;
 }
 
 // ---------- minimap (shows curve ahead) ----------
 const mapCv=$("map"), mctx=mapCv.getContext("2d");
-function drawMap(){ mctx.clearRect(0,0,112,112);
+const MS=154, MCX=77, MCY=116, MSC=1.9;
+function drawMap(){ mctx.clearRect(0,0,MS,MS);
   const base=playerSeg, ca=center(base); const fx=ca.rz, fz=-ca.rx; // forward = perpendicular to right
-  const P=(x,z)=>{ const dx=x-ca.x, dz=z-ca.z; return [56+(dx*ca.rx+dz*ca.rz)*1.4, 92-(dx*fx+dz*fz)*1.4]; };
-  mctx.strokeStyle="rgba(150,180,255,0.7)"; mctx.lineWidth=2; mctx.beginPath();
-  for(let k=-6;k<=54;k+=2){ const c=center(base+k); const p=P(c.x,c.z); if(k===-6)mctx.moveTo(p[0],p[1]); else mctx.lineTo(p[0],p[1]); }
+  const P=(x,z)=>{ const dx=x-ca.x, dz=z-ca.z; return [MCX+(dx*ca.rx+dz*ca.rz)*MSC, MCY-(dx*fx+dz*fz)*MSC]; };
+  // faixa da rua
+  mctx.strokeStyle="rgba(90,100,120,0.9)"; mctx.lineWidth=10; mctx.lineCap="round"; mctx.beginPath();
+  for(let k=-8;k<=58;k+=2){ const c=center(base+k); const p=P(c.x,c.z); if(k===-8)mctx.moveTo(p[0],p[1]); else mctx.lineTo(p[0],p[1]); }
   mctx.stroke();
-  mctx.fillStyle="#33aaff"; for(const o of KPOOL){ if(o.taken)continue; const c=center(o.slot*17+9); const p=P(c.x+c.rx*o.off*ROADH,c.z+c.rz*o.off*ROADH); if(p[1]>2&&p[1]<110){mctx.fillRect(p[0]-1.5,p[1]-1.5,3,3);} }
-  for(const o of TPOOL){ if(o.dead)continue; const c=center(o.seg); const p=P(c.x+c.rx*o.off*ROADH,c.z+c.rz*o.off*ROADH); if(p[1]>2&&p[1]<110){ mctx.fillStyle=o.police?"#ff5a4a":"#ffa24a"; mctx.beginPath();mctx.arc(p[0],p[1],2.2,0,7);mctx.fill(); } }
-  mctx.fillStyle="#ffe08a"; mctx.beginPath(); mctx.arc(56,92,3,0,7); mctx.fill();
+  mctx.strokeStyle="rgba(150,180,255,0.75)"; mctx.lineWidth=2; mctx.beginPath();
+  for(let k=-8;k<=58;k+=2){ const c=center(base+k); const p=P(c.x,c.z); if(k===-8)mctx.moveTo(p[0],p[1]); else mctx.lineTo(p[0],p[1]); }
+  mctx.stroke();
+  mctx.fillStyle="#33aaff"; for(const o of KPOOL){ if(o.taken)continue; const c=center(o.slot*17+9); const p=P(c.x+c.rx*o.off*ROADH,c.z+c.rz*o.off*ROADH); if(p[1]>2&&p[1]<MS-2){mctx.fillRect(p[0]-2,p[1]-2,4,4);} }
+  for(const o of TPOOL){ if(o.dead)continue; const c=center(o.seg); const p=P(c.x+c.rx*o.off*ROADH,c.z+c.rz*o.off*ROADH); if(p[1]>2&&p[1]<MS-2){ mctx.fillStyle=o.police?"#4aa0ff":"#ffa24a"; mctx.beginPath();mctx.arc(p[0],p[1],2.6,0,7);mctx.fill(); } }
+  // jogador (seta)
+  mctx.fillStyle="#ffe08a"; mctx.beginPath(); mctx.moveTo(MCX,MCY-5); mctx.lineTo(MCX-4,MCY+4); mctx.lineTo(MCX+4,MCY+4); mctx.closePath(); mctx.fill();
 }
 
 // ---------- input ----------
@@ -1571,9 +1599,9 @@ function toggleMute(){ musicOn=!musicOn; if(aMaster)aMaster.gain.setTargetAtTime
 
 // ---------- state ----------
 let started=false, dist=0, playerSeg=0, speed=0, offset=0, nitro=0.6, boosting=false, day=1, dayTime=0, score=0, best=Number(localStorage.getItem("enduro3d_best")||0);
-let camPos=new T.Vector3(), lookAt=new T.Vector3(), combo=0, comboT=0, shake=0;
+let camPos=new T.Vector3(), lookAt=new T.Vector3(), combo=0, comboT=0, shake=0, heat=0, wanted=0, lastWanted=-1;
 const MAXV=140;
-function start(){ if(day>7){ day=1; dayTime=0; score=0; dist=0; speed=0; } started=true; resetControls(); initAudio(); $("ovl").style.display="none"; }
+function start(){ if(day>7){ day=1; dayTime=0; score=0; dist=0; speed=0; } heat=0; wanted=0; lastWanted=-1; combo=0; started=true; resetControls(); initAudio(); $("ovl").style.display="none"; }
 $("startBtn").addEventListener("click",start);
 $("ovl").addEventListener("click",()=>{if(!started)start();});
 $("ovl").addEventListener("touchstart",e=>{if(!started){start();e.preventDefault();}},{passive:false});
@@ -1585,8 +1613,8 @@ function addScore(base,label){ const mult = combo>=8?4 : combo>=5?3 : combo>=2?2
   if(combo>=2){ comboEl.textContent="COMBO x"+combo; comboEl.style.opacity=1; } }
 function endGame(){ started=false; if(score>best){best=score;localStorage.setItem("enduro3d_best",best);}
   $("ovl").style.display="flex";
-  $("ovl").innerHTML='<h1>7 DIAS!</h1><p>Fim da corrida. Pontuação: <b>'+score+'</b></p><p>Recorde: '+best+'</p>'+
-    '<button class="go" id="startBtn">▶ JOGAR DE NOVO</button><div class="hint">Atropele, destrua e sobreviva aos 7 ambientes.</div>';
+  $("ovl").innerHTML='<h1>7 DIAS!</h1><p>Fim da corrida. Total: <b style="color:#7be05a">$'+score.toLocaleString("en-US")+'</b></p><p>Recorde: $'+best.toLocaleString("en-US")+'</p>'+
+    '<button class="go" id="startBtn">▶ JOGAR DE NOVO</button><div class="hint">Cada dia tem seu clima e passa de dia a noite. Faça o caos e fuja da polícia.</div>';
   $("startBtn").addEventListener("click",()=>location.reload());
 }
 
@@ -1653,14 +1681,14 @@ function frame(now){
     for(const o of PPOOL){ if(o.hit) continue; const segDist=(o.slot*2 - playerSeg);
       if(Math.abs(segDist)<1.1 && Math.abs(offset-o.off)<0.32 && speed>8){
         o.hit=true; o.mesh.visible=false; emitBlood(o.mesh.position.x,o.mesh.position.y+0.8,o.mesh.position.z,12);
-        addScore(50,"ATROPELOU!"); sfx("run"); shake=Math.max(shake,0.18); }
+        addScore(50,"ATROPELOU!"); sfx("run"); shake=Math.max(shake,0.18); heat+=6; }
     }
     // traffic (smash)
     for(const o of TPOOL){ if(o.dead) continue; const segDist=(o.seg - playerSeg);
       if(Math.abs(segDist)<1.7 && Math.abs(offset-o.off)<0.62 && speed>20){
         o.dead=1; o.spin=0; addScore(120,"DESTRUIU!"); sfx("hit");
         emitSparks(o.mesh.position.x,o.mesh.position.y+1,o.mesh.position.z,18);
-        speed*=0.72; shake=Math.max(shake,0.55); }
+        speed*=0.72; shake=Math.max(shake,0.55); heat+=o.police?26:15; }
     }
     // pickups
     for(const o of KPOOL){ if(o.taken){continue;} o.mesh.rotation.y+=dt*2.5;
@@ -1668,6 +1696,9 @@ function frame(now){
       o.mesh.position.y = center(o.slot*17+9).y + 1.4 + Math.sin(clock*3+o.slot)*0.25;
       if(Math.abs(segDist)<0.9 && Math.abs(offset-o.off)<0.5){ o.taken=1; o.mesh.visible=false; o.glow.visible=false; nitro=Math.min(1,nitro+0.4); flash("NITRO +","#7ab8ff"); sfx("nitro"); }
     }
+    heat=Math.max(0,heat-dt*4); wanted=heat<8?0:heat<28?1:heat<55?2:heat<90?3:heat<140?4:5;
+    if(wanted>lastWanted && wanted>0){ flash(wanted>=4?"CAOS TOTAL!":"PROCURADO ★"+wanted,"#ff6a4a"); }
+    lastWanted=wanted;
   }
   updateBlood(dt); updateSparks(dt); updateWeather(dt);
 
@@ -1675,7 +1706,8 @@ function frame(now){
   $("kmh").textContent=Math.round(speedPct*260);
   $("gear").textContent="MARCHA "+Math.max(1,Math.min(6,1+Math.floor(speedPct*6)));
   $("nfill").style.width=(nitro*100).toFixed(0)+"%"; $("nfill").style.background=boosting?"#dff0ff":"linear-gradient(90deg,#2a6bff,#9fe0ff)";
-  $("score").textContent=score;
+  $("cash").textContent="$"+score.toLocaleString("en-US");
+  if(wanted!==+$("wanted").dataset.w){ $("wanted").dataset.w=wanted; let s=""; for(let i=0;i<5;i++) s+= i<wanted?"★":'<span class="off">★</span>'; $("wanted").innerHTML=s; }
   { const rem=Math.max(0,DAY_DUR-dayTime),mm=Math.floor(rem/60),ss=Math.floor(rem%60);
     $("day").textContent="DIA "+Math.min(day,7)+"/7 · "+mm+":"+(ss<10?"0":"")+ss; }
   if(msgT>0){ msgT-=dt; if(msgT<=0) msg.style.opacity=0; }
