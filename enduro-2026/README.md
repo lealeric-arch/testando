@@ -104,7 +104,7 @@ Controles: `↑` acelera · `↓` freia · `← →` dirige · `Shift` nitro · 
 | Arquivo | Função |
 |---|---|
 | `index.html` | Versão 2D pseudo-3D (canvas) — completa: garagem, polícia, drift, chuva |
-| `index3d.html` | **Versão 3D real (WebGL/Three.js)** — pista **infinita**, **7 dias** (3 min cada) com ambiente diferente por dia, pegada **Carmageddon** (atropele pedestres e destrua carros por pontos, com respingo de sangue), nitro no caminho, minimapa e trilha synthwave. Roda no PC e no celular. Three.js embutido (offline) |
+| `index3d.html` | **Versão 3D real (WebGL/Three.js)** — cidade aberta, pista **infinita**, **7 dias** (3 min cada) e cada dia passa por **dia → tarde → noite** com **clima próprio** (limpo/chuva/neblina/neve). Estética **estilo GTA**: dinheiro (`$`), nível de **procurado** (★) com polícia perseguindo, minimapa arredondado e color grade cinematográfico. Pegada **Carmageddon** (atropele/destrua por dinheiro, com sangue e faíscas), bloom, reflexos, nitro e trilha synthwave. Roda no PC e no celular. Three.js embutido (offline) |
 | `manifest.webmanifest` | Metadados do PWA |
 | `sw.js` | Service worker — cache offline |
 | `icon-192.png` / `icon-512.png` | Ícones do app |
