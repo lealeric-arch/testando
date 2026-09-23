@@ -92,6 +92,19 @@ em **ACELERAR** para começar.
 Controles: `↑` acelera · `↓` freia · `← →` dirige · `Shift` nitro · `M` música ·
 `Enter` começa. No celular, botões na tela.
 
+## Jogar no PC (app nativo)
+
+Além de rodar no navegador, o jogo 3D pode virar um **app de PC**:
+
+- **Sem instalar nada:** no Windows, dê dois cliques em [`JOGAR-PC.bat`](./JOGAR-PC.bat)
+  (abre em tela cheia no Edge/Chrome, modo aplicativo). No Mac/Linux use
+  [`jogar-pc.sh`](./jogar-pc.sh).
+- **App nativo / instalador `.exe`:** projeto **Electron** em [`desktop/`](./desktop/) —
+  veja [`desktop/README-PC.md`](./desktop/README-PC.md). Na sua máquina:
+  `cd desktop && npm install && npm run dist` gera o instalador em `desktop/dist/`.
+- Também é possível baixar um **build portátil do Windows** (pasta com
+  `ENDURO 2026 CITY.exe`): é só descompactar e executar, sem instalar.
+
 ## Detalhes técnicos
 
 - Resolução interna `384×240` escalada com suavização, renderizador de estrada por
