@@ -117,7 +117,7 @@ Além de rodar no navegador, o jogo 3D pode virar um **app de PC**:
 | Arquivo | Função |
 |---|---|
 | `index.html` | Versão 2D pseudo-3D (canvas) — completa: garagem, polícia, drift, chuva |
-| `index3d.html` | **Versão 3D real (WebGL/Three.js)** — cidade aberta, pista **infinita**, **7 dias** (3 min cada) e cada dia passa por **dia → tarde → noite** com **clima próprio** (limpo/chuva/neblina/neve). Estética **estilo GTA**: dinheiro (`$`), nível de **procurado** (★) com polícia perseguindo, minimapa arredondado e color grade cinematográfico. Pegada **Carmageddon** (atropele/destrua por dinheiro, com sangue e faíscas), bloom, reflexos, nitro e trilha synthwave. Roda no PC e no celular. Three.js embutido (offline) |
+| `index3d.html` | **Versão 3D real (WebGL/Three.js)** — cidade aberta com **árvores, postes de luz e carros mais detalhados**, pista **infinita**, **7 dias** (3 min cada) e cada dia passa por **dia → tarde → noite** com **clima próprio** (limpo/chuva/neblina/neve). Estética **estilo GTA**: dinheiro (`$`), nível de **procurado** (★) com polícia perseguindo, minimapa arredondado e color grade cinematográfico. Pegada **Carmageddon** (atropele/destrua por dinheiro, com sangue e faíscas), bloom, reflexos, **anti-serrilhado (FXAA)**, nitro e trilha synthwave. Roda no PC e no celular. Three.js embutido (offline) |
 | `manifest.webmanifest` | Metadados do PWA |
 | `sw.js` | Service worker — cache offline |
 | `icon-192.png` / `icon-512.png` | Ícones do app |
